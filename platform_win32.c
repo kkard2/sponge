@@ -1,8 +1,8 @@
 #define UNICODE
 #include <windows.h>
 
-#define SPONGE_IMPLEMENTATION
-#include "sponge.h"
+// TODO(kard): we should probably put more thought into this
+#include "example.c"
 
 // TODO(kard): ofc some resizing stuff
 #define WIDTH 256
@@ -88,10 +88,7 @@ int WinMain(
 
 
         // NOTE(kard): ACTUAL RENDERING CODE HERE !!!
-        sponge_clear(canvas, 0xFF000000);
-        sponge_draw_rect(canvas, 80, 70, 80 + 20, 70 + 40, 0xFFFF00FF);
-        sponge_draw_rect(canvas, 140, 70, 140 + 20, 70 + 40, 0xFFFF00FF);
-
+        draw_frame(canvas);
 
         HDC hdc = GetDC(hwnd);
         StretchDIBits(
