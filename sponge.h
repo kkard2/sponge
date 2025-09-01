@@ -6,22 +6,22 @@ typedef struct {
     uint32_t width;
     uint32_t height;
     uint32_t stride;
-} soft_Canvas;
+} sponge_Canvas;
 
-void soft_clear(soft_Canvas c, uint32_t color);
-void soft_draw_rect(soft_Canvas c, uint32_t x0, uint32_t y0, uint32_t x1, uint32_t y1, uint32_t color);
+void sponge_clear(sponge_Canvas c, uint32_t color);
+void sponge_draw_rect(sponge_Canvas c, uint32_t x0, uint32_t y0, uint32_t x1, uint32_t y1, uint32_t color);
 
 // TODO(kard): prefix stripping
 
-#ifdef SOFTRENDER_IMPLEMENTATION
+#ifdef SPONGE_IMPLEMENTATION
 
-void soft_clear(soft_Canvas c, uint32_t color) {
-    soft_draw_rect(c, 0, 0, c.width - 1, c.height - 1, color);
+void sponge_clear(sponge_Canvas c, uint32_t color) {
+    sponge_draw_rect(c, 0, 0, c.width - 1, c.height - 1, color);
 }
 
 // TODO(kard): probably bounds checking
 // TODO(kard): alpha blending maybe
-void soft_draw_rect(soft_Canvas c, uint32_t x0, uint32_t y0, uint32_t x1, uint32_t y1, uint32_t color) {
+void sponge_draw_rect(sponge_Canvas c, uint32_t x0, uint32_t y0, uint32_t x1, uint32_t y1, uint32_t color) {
     uint32_t *row = c.pixels + (y0 * c.stride);
 
     for (uint32_t y = y0; y <= y1; y++, row += c.stride) {
@@ -31,5 +31,5 @@ void soft_draw_rect(soft_Canvas c, uint32_t x0, uint32_t y0, uint32_t x1, uint32
     }
 }
 
-#endif // SOFTRENDER_IMPLEMENTATION
+#endif // SPONGE_IMPLEMENTATION
 

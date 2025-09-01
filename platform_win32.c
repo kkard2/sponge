@@ -1,8 +1,8 @@
 #define UNICODE
 #include <windows.h>
 
-#define SOFTRENDER_IMPLEMENTATION
-#include "softrender.h"
+#define SPONGE_IMPLEMENTATION
+#include "sponge.h"
 
 // TODO(kard): ofc some resizing stuff
 #define WIDTH 256
@@ -27,7 +27,7 @@ int WinMain(
     LPSTR     lpCmdLine,
     int       nShowCmd
 ) {
-    const wchar_t CLASS_NAME[]  = L"softrender";
+    const wchar_t CLASS_NAME[]  = L"sponge";
 
     WNDCLASS wc = { 0 };
 
@@ -40,7 +40,7 @@ int WinMain(
     HWND hwnd = CreateWindowEx(
         0,
         CLASS_NAME,
-        L"softrender",
+        L"sponge",
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, // bla bla you can't resize window basically
         CW_USEDEFAULT, CW_USEDEFAULT, WIDTH, HEIGHT,
         NULL,
@@ -63,7 +63,7 @@ int WinMain(
     bmi.bmiHeader.biBitCount    = 32;
     bmi.bmiHeader.biCompression = BI_RGB;
 
-    soft_Canvas canvas = {
+    sponge_Canvas canvas = {
         .pixels = pixel_buffer,
         .width = WIDTH,
         .height = HEIGHT,
@@ -88,9 +88,9 @@ int WinMain(
 
 
         // NOTE(kard): ACTUAL RENDERING CODE HERE !!!
-        soft_clear(canvas, 0xFF000000);
-        soft_draw_rect(canvas, 80, 70, 80 + 20, 70 + 40, 0xFFFF00FF);
-        soft_draw_rect(canvas, 140, 70, 140 + 20, 70 + 40, 0xFFFF00FF);
+        sponge_clear(canvas, 0xFF000000);
+        sponge_draw_rect(canvas, 80, 70, 80 + 20, 70 + 40, 0xFFFF00FF);
+        sponge_draw_rect(canvas, 140, 70, 140 + 20, 70 + 40, 0xFFFF00FF);
 
 
         HDC hdc = GetDC(hwnd);
