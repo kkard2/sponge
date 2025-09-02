@@ -1,5 +1,6 @@
 #include <stdint.h>
 
+// TODO(kard): consider storing pixels buffer size
 typedef struct {
     // TODO(kard): define byte order
     uint32_t *pixels;

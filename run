@@ -1,0 +1,2 @@
+#!/bin/bash
+cc -o platform_x11 platform_x11.c -lX11 -Wall -Wextra -g && ./platform_x11
