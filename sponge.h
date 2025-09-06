@@ -10,7 +10,6 @@ typedef struct {
 
 void sponge_clear(sponge_Texture c, uint32_t color);
 void sponge_draw_rect(sponge_Texture c, uint32_t x0, uint32_t y0, uint32_t x1, uint32_t y1, uint32_t color);
-void sponge_draw_texture(sponge_Texture c, uint32_t x0, uint32_t y0, uint32_t x1, uint32_t y1, sponge_Texture texture);
 
 // TODO(kard): prefix stripping
 

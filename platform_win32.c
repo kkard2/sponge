@@ -1,13 +1,16 @@
 #define UNICODE
 #include <windows.h>
 #include <assert.h>
+#include <stdio.h>
+#include <io.h>
+
+#include <fcntl.h>
 
 #define SPONGE_IMPLEMENTATION
 #include "sponge.h"
 
 #include "example.h"
 
-// TODO(kard): ofc some resizing stuff
 #define DEFAULT_WIDTH 256
 #define DEFAULT_HEIGHT 256
 
@@ -36,6 +39,22 @@ int update_canvas(sponge_Texture *canvas, uint32_t new_width, uint32_t new_heigh
     bmi.bmiHeader.biPlanes      = 1;
     bmi.bmiHeader.biBitCount    = 32;
     bmi.bmiHeader.biCompression = BI_RGB;
+    return 1;
+}
+
+// TODO(kard): MSVC complains about freopen (should be freopen_s apparently)
+void redirect_io_to_console() {
+    AllocConsole();
+    FILE *fp;
+
+    fp = freopen("CONOUT$", "w", stdout);
+    setvbuf(stdout, NULL, _IONBF, 0);
+
+    fp = freopen("CONOUT$", "w", stderr);
+    setvbuf(stderr, NULL, _IONBF, 0);
+
+    fp = freopen("CONIN$", "r", stdin);
+    setvbuf(stdin, NULL, _IONBF, 0);
 }
 
 LRESULT WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
@@ -61,6 +80,8 @@ int WinMain(
     LPSTR     lpCmdLine,
     int       nShowCmd
 ) {
+    redirect_io_to_console();
+
     const wchar_t CLASS_NAME[]  = L"sponge";
 
     WNDCLASS wc = { 0 };
