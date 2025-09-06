@@ -1,9 +1,8 @@
 #include <assert.h>
 
-#define SPONGE_IMPLEMENTATION
-#include "sponge.h"
+#include "../sponge.h"
 
-void draw_frame(sponge_Canvas c) {
+void draw_frame(sponge_Texture c) {
     assert(c.width > 140 + 20);
     assert(c.height > 70 + 40);
     sponge_clear(c, 0xFF000000);

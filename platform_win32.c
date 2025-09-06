@@ -1,8 +1,10 @@
 #define UNICODE
 #include <windows.h>
 
-// TODO(kard): we should probably put more thought into this
-#include "example.c"
+#define SPONGE_IMPLEMENTATION
+#include "sponge.h"
+
+#include "example.h"
 
 // TODO(kard): ofc some resizing stuff
 #define WIDTH 256
@@ -63,7 +65,7 @@ int WinMain(
     bmi.bmiHeader.biBitCount    = 32;
     bmi.bmiHeader.biCompression = BI_RGB;
 
-    sponge_Canvas canvas = {
+    sponge_Texture canvas = {
         .pixels = pixel_buffer,
         .width = WIDTH,
         .height = HEIGHT,
