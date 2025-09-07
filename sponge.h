@@ -7,6 +7,7 @@ typedef struct {
     uint32_t stride;
 } sponge_Texture;
 
+int  sponge_canvas_valid(sponge_Texture c);
 void sponge_clear       (sponge_Texture c, uint32_t color);
 void sponge_draw_rect   (sponge_Texture c, uint32_t x0, uint32_t y0, uint32_t x1, uint32_t y1, uint32_t color);
 void sponge_draw_texture(sponge_Texture c, uint32_t x0, uint32_t y0, sponge_Texture tex);
@@ -15,19 +16,27 @@ void sponge_draw_texture(sponge_Texture c, uint32_t x0, uint32_t y0, sponge_Text
 
 #ifdef SPONGE_IMPLEMENTATION
 
-int sponge__canvas_valid(sponge_Texture c) {
+// can be defined as nop in release builds
+#ifndef SPONGE_ASSERT
+#include <assert.h>
+#define SPONGE_ASSERT(x) assert(x)
+#endif // SPONGE_ASSERT
+
+int sponge_canvas_valid(sponge_Texture c) {
     return c.width != 0 && c.height != 0;
 }
 
 void sponge_clear(sponge_Texture c, uint32_t color) {
-    if (!sponge__canvas_valid(c))
-        return;
+    SPONGE_ASSERT(sponge_canvas_valid(c));
+
     sponge_draw_rect(c, 0, 0, c.width - 1, c.height - 1, color);
 }
 
 // TODO(kard): probably bounds checking
 // TODO(kard): alpha blending maybe
 void sponge_draw_rect(sponge_Texture c, uint32_t x0, uint32_t y0, uint32_t x1, uint32_t y1, uint32_t color) {
+    SPONGE_ASSERT(sponge_canvas_valid(c));
+
     uint32_t *row = c.pixels + (y0 * c.stride);
 
     for (uint32_t y = y0; y <= y1; y++, row += c.stride) {
@@ -38,8 +47,7 @@ void sponge_draw_rect(sponge_Texture c, uint32_t x0, uint32_t y0, uint32_t x1, u
 }
 
 void sponge_draw_texture(sponge_Texture c, uint32_t x0, uint32_t y0, sponge_Texture tex) {
-    if (!sponge__canvas_valid(c))
-        return;
+    SPONGE_ASSERT(sponge_canvas_valid(c));
 
     uint32_t *row_dst = c.pixels + (y0 * c.stride);
     uint32_t *row_src = tex.pixels;

@@ -143,7 +143,8 @@ int WinMain(
 
         if (!running) break;
 
-        draw_frame(canvas);
+        if (sponge_canvas_valid(canvas))
+            draw_frame(canvas);
 
         QueryPerformanceCounter(&qpc_end);
         qpc_draw.QuadPart = qpc_end.QuadPart - qpc_start.QuadPart;
