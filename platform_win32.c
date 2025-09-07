@@ -17,6 +17,8 @@
 #define DEFAULT_WIDTH 256
 #define DEFAULT_HEIGHT 256
 
+#define TARGET_FRAME_TIME_US 16666
+
 static size_t pixels_buffer_count;
 static sponge_Texture canvas;
 static BITMAPINFO bmi;
@@ -119,7 +121,16 @@ int WinMain(
 
     init();
 
+    LARGE_INTEGER qpc_freq;
+    LARGE_INTEGER qpc_start;
+    LARGE_INTEGER qpc_end;
+    LARGE_INTEGER qpc_draw;
+    LARGE_INTEGER qpc_frame;
+    QueryPerformanceFrequency(&qpc_freq);
+    QueryPerformanceCounter(&qpc_start);
+
     while (running) {
+        QueryPerformanceCounter(&qpc_start);
         while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
             if (msg.message == WM_QUIT) {
                 running = FALSE;
@@ -133,6 +144,11 @@ int WinMain(
         if (!running) break;
 
         draw_frame(canvas);
+
+        QueryPerformanceCounter(&qpc_end);
+        qpc_draw.QuadPart = qpc_end.QuadPart - qpc_start.QuadPart;
+        qpc_draw.QuadPart *= 1000000; // microseconds
+        qpc_draw.QuadPart /= qpc_freq.QuadPart;
 
         HDC hdc = GetDC(hwnd);
         StretchDIBits(
@@ -149,7 +165,32 @@ int WinMain(
         InvalidateRect(hwnd, NULL, FALSE);
         UpdateWindow(hwnd);
 
-        // TODO(kard): proper frame limiting
+        QueryPerformanceCounter(&qpc_end);
+        qpc_frame.QuadPart = qpc_end.QuadPart - qpc_start.QuadPart;
+        qpc_frame.QuadPart *= 1000000; // microseconds
+        qpc_frame.QuadPart /= qpc_freq.QuadPart;
+
+        fprintf(stderr, "draw time: %3lld.%03lldms, frame time: %3lld.%03lldms\n",
+            qpc_draw.QuadPart / 1000, qpc_draw.QuadPart % 1000,
+            qpc_frame.QuadPart / 1000, qpc_frame.QuadPart % 1000);
+
+        // TODO(kard):
+        // 1. this can probably be done cleaner
+        // 2. resetting after every frame is wrong, it should be a value across frames (see 1.)
+        if (qpc_frame.QuadPart < TARGET_FRAME_TIME_US) {
+            LARGE_INTEGER remaining;
+            LARGE_INTEGER actual_end;
+            actual_end.QuadPart = qpc_start.QuadPart + (TARGET_FRAME_TIME_US * qpc_freq.QuadPart / 1000000);
+            remaining.QuadPart = (actual_end.QuadPart - qpc_end.QuadPart) * 1000000 / qpc_freq.QuadPart;
+            if (remaining.QuadPart > 2000) {
+                Sleep((remaining.QuadPart - 1000) / 1000);
+            }
+
+            while (qpc_end.QuadPart < actual_end.QuadPart) {
+                QueryPerformanceCounter(&qpc_end);
+            }
+        }
+
         Sleep(16);
     }
 
