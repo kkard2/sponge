@@ -15,7 +15,13 @@ void sponge_draw_texture(sponge_Texture c, uint32_t x0, uint32_t y0, sponge_Text
 
 #ifdef SPONGE_IMPLEMENTATION
 
+int sponge__canvas_valid(sponge_Texture c) {
+    return c.width != 0 && c.height != 0;
+}
+
 void sponge_clear(sponge_Texture c, uint32_t color) {
+    if (!sponge__canvas_valid(c))
+        return;
     sponge_draw_rect(c, 0, 0, c.width - 1, c.height - 1, color);
 }
 
@@ -32,6 +38,9 @@ void sponge_draw_rect(sponge_Texture c, uint32_t x0, uint32_t y0, uint32_t x1, u
 }
 
 void sponge_draw_texture(sponge_Texture c, uint32_t x0, uint32_t y0, sponge_Texture tex) {
+    if (!sponge__canvas_valid(c))
+        return;
+
     uint32_t *row_dst = c.pixels + (y0 * c.stride);
     uint32_t *row_src = tex.pixels;
     uint32_t x1 = x0 + tex.width;

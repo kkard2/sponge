@@ -1,3 +1,5 @@
 *.exe
 *.obj
-platform_x11
+*.ilk
+*.pdb
+*.rdi
