@@ -49,7 +49,6 @@ void draw_frame(sponge_Texture c) {
         pos_x = 0;
         speed_x = SPEED_X_ABS;
     } else if (pos_x + texture.width > c.width) {
-        pos_x = c.width - texture.width;
         speed_x = -SPEED_X_ABS;
     }
 
@@ -57,7 +56,6 @@ void draw_frame(sponge_Texture c) {
         pos_y = 0;
         speed_y = SPEED_X_ABS;
     } else if (pos_y + texture.height > c.height) {
-        pos_y = c.height - texture.height;
         speed_y = -SPEED_Y_ABS;
     }
 
