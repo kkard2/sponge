@@ -39,53 +39,54 @@ void sponge_draw_triangle_col3(
 #define SPONGE__MIN(x, y) ((x) < (y) ? (x) : (y))
 #define SPONGE__MAX(x, y) ((x) > (y) ? (x) : (y))
 
-// TODO(kard): these color functions will probably be public in the future
+typedef struct {
+    float a;
+    float r;
+    float g;
+    float b;
+} sponge__ColorF;
 
-void sponge__col_unpack(uint32_t col, uint32_t *a, uint32_t *r, uint32_t *g, uint32_t *b) {
-    *b = col & 0xFF;
+sponge__ColorF sponge__colf_unpack(uint32_t col) {
+    uint32_t b = col & 0xFF;
     col = col >> 8;
-    *g = col & 0xFF;
+    uint32_t g = col & 0xFF;
     col = col >> 8;
-    *r = col & 0xFF;
+    uint32_t r = col & 0xFF;
     col = col >> 8;
-    *a = col & 0xFF;
-}
-
-uint32_t sponge__col_pack(uint32_t a, uint32_t r, uint32_t g, uint32_t b) {
-    uint32_t result = 0;
-    result |= SPONGE__CLAMP(a, 0x00, 0xFF);
-    result = result << 8;
-    result |= SPONGE__CLAMP(r, 0x00, 0xFF);
-    result = result << 8;
-    result |= SPONGE__CLAMP(g, 0x00, 0xFF);
-    result = result << 8;
-    result |= SPONGE__CLAMP(b, 0x00, 0xFF);
+    uint32_t a = col & 0xFF;
+    sponge__ColorF result = { .a = (float)a, .r = (float)r, .g = (float)g, .b = (float)b };
     return result;
 }
 
-uint32_t sponge__col_add(uint32_t col0, uint32_t col1) {
-    uint32_t a0, r0, g0, b0;
-    uint32_t a1, r1, g1, b1;
-    sponge__col_unpack(col0, &a0, &r0, &g0, &b0);
-    sponge__col_unpack(col1, &a1, &r1, &g1, &b1);
-    uint32_t a = a0 + a1;
-    uint32_t r = r0 + r1;
-    uint32_t g = g0 + g1;
-    uint32_t b = b0 + b1;
-    return sponge__col_pack(a, r, g, b);
+uint32_t sponge__colf_pack(sponge__ColorF color) {
+    uint32_t result = 0;
+    result |= SPONGE__CLAMP((uint32_t)color.a, 0x00, 0xFF);
+    result = result << 8;
+    result |= SPONGE__CLAMP((uint32_t)color.r, 0x00, 0xFF);
+    result = result << 8;
+    result |= SPONGE__CLAMP((uint32_t)color.g, 0x00, 0xFF);
+    result = result << 8;
+    result |= SPONGE__CLAMP((uint32_t)color.b, 0x00, 0xFF);
+    return result;
 }
 
-uint32_t sponge__col_mul(uint32_t col, float t) {
-    float b = (float)(col & 0xFF) * t;
-    col = col >> 8;
-    float g = (float)(col & 0xFF) * t;
-    col = col >> 8;
-    float r = (float)(col & 0xFF) * t;
-    col = col >> 8;
-    float a = (float)(col & 0xFF) * t;
-
-    return sponge__col_pack((uint32_t)a, (uint32_t)r, (uint32_t)g, (uint32_t)b);
+sponge__ColorF sponge__colf_mul(sponge__ColorF color, float f) {
+    color.a *= f;
+    color.r *= f;
+    color.g *= f;
+    color.b *= f;
+    return color;
 }
+
+sponge__ColorF sponge__colf_add(sponge__ColorF color0, sponge__ColorF color1) {
+    sponge__ColorF result;
+    result.a = color0.a + color1.a;
+    result.r = color0.r + color1.r;
+    result.g = color0.g + color1.g;
+    result.b = color0.b + color1.b;
+    return result;
+}
+
 
 typedef struct {
     sponge_Vec2 v0;
@@ -94,11 +95,11 @@ typedef struct {
     float d01;
     float d11;
     float denom;
-} sponge_BarycentricContext;
+} sponge__BarycentricContext;
 
 // TODO(kard): measure if caching this makes sense
-sponge_BarycentricContext sponge__barycentric_init(sponge_Vec2 t0, sponge_Vec2 t1, sponge_Vec2 t2) {
-    sponge_BarycentricContext result;
+sponge__BarycentricContext sponge__barycentric_init(sponge_Vec2 t0, sponge_Vec2 t1, sponge_Vec2 t2) {
+    sponge__BarycentricContext result;
     result.v0 = sponge_sub2(t1, t0);
     result.v1 = sponge_sub2(t2, t0);
     result.d00 = sponge_dot2(result.v0, result.v0);
@@ -109,7 +110,7 @@ sponge_BarycentricContext sponge__barycentric_init(sponge_Vec2 t0, sponge_Vec2 t
 }
 
 void sponge__barycentric(
-    sponge_BarycentricContext ctx, sponge_Vec2 p,
+    sponge__BarycentricContext ctx, sponge_Vec2 p,
     sponge_Vec2 t0,
     sponge_Vec2 t1,
     sponge_Vec2 t2,
@@ -220,9 +221,13 @@ void sponge_draw_triangle_col3(
     uint32_t min_y = (uint32_t)SPONGE__CLAMP(smin_y, 0, (int32_t)(c.height - 1));
     uint32_t max_y = (uint32_t)SPONGE__CLAMP(smax_y, 0, (int32_t)(c.height - 1));
 
-    sponge_BarycentricContext ctx = sponge__barycentric_init(t0, t1, t2);
+    sponge__BarycentricContext ctx = sponge__barycentric_init(t0, t1, t2);
 
     uint32_t *row = c.pixels + (min_y * c.stride);
+
+    sponge__ColorF color0f = sponge__colf_unpack(color0);
+    sponge__ColorF color1f = sponge__colf_unpack(color1);
+    sponge__ColorF color2f = sponge__colf_unpack(color2);
 
     for (uint32_t y = min_y; y <= max_y; y++, row += c.stride) {
         for (uint32_t x = x0; x <= max_x; x++) {
@@ -232,14 +237,11 @@ void sponge_draw_triangle_col3(
             if (u > 0.0f && v > 0.0f && w > 0.0f)
             {
                 // TODO(kard): make more robust, this probably has a lot of off by 1 errors
-                uint32_t c0 = sponge__col_mul(color0, u);
-                uint32_t c1 = sponge__col_mul(color1, v);
-                uint32_t c2 = sponge__col_mul(color2, w);
-                uint32_t result = 0;
-                result = sponge__col_add(result, c0);
-                result = sponge__col_add(result, c1);
-                result = sponge__col_add(result, c2);
-                row[x] = result;
+                sponge__ColorF c0 = sponge__colf_mul(color0f, u);
+                sponge__ColorF c1 = sponge__colf_mul(color1f, v);
+                sponge__ColorF c2 = sponge__colf_mul(color2f, w);
+                sponge__ColorF result = sponge__colf_add(c0, sponge__colf_add(c1, c2));
+                row[x] = sponge__colf_pack(result);
             }
         }
     }
