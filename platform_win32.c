@@ -9,6 +9,9 @@
 #define SPONGE_IMPLEMENTATION
 #include "sponge.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 #include "example.h"
 
 #define DEFAULT_WIDTH 256
@@ -113,6 +116,8 @@ int WinMain(
 
     MSG msg = {0};
     BOOL running = TRUE;
+
+    init();
 
     while (running) {
         while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {

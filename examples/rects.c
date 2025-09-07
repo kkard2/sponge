@@ -2,6 +2,8 @@
 
 #include "../sponge.h"
 
+void init() {}
+
 void draw_frame(sponge_Texture c) {
     assert(c.width > 140 + 20);
     assert(c.height > 70 + 40);

@@ -1,13 +1,12 @@
-#include <stdio.h>
 #include <math.h>
-
-
 
 #include "../sponge.h"
 
 #define PI ((float)3.14159265358979323846)
 #define SPEED (2.0f / 360.0f * 2 * PI)
 static float angle = 0.0f;
+
+void init() {}
 
 void draw_frame(sponge_Texture c) {
     angle += SPEED;
