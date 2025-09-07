@@ -21,7 +21,7 @@ void init() {
     }
 
     texture.stride = texture.width;
-    texture.pixels = data; // NOTE(kard): be careful if changing following loop
+    texture.pixels = (uint32_t *)data; // NOTE(kard): be careful if changing following loop
 
     // converting from stbi's RGBA to ARGB
     for (size_t i = 0; i < texture.width * texture.height; i++) {

@@ -52,13 +52,13 @@ void redirect_io_to_console() {
     AllocConsole();
     FILE *fp;
 
-    fp = freopen("CONOUT$", "w", stdout);
+    assert(!freopen_s(&fp, "CONOUT$", "w", stdout));
     setvbuf(stdout, NULL, _IONBF, 0);
 
-    fp = freopen("CONOUT$", "w", stderr);
+    assert(!freopen_s(&fp, "CONOUT$", "w", stderr));
     setvbuf(stderr, NULL, _IONBF, 0);
 
-    fp = freopen("CONIN$", "r", stdin);
+    assert(!freopen_s(&fp, "CONIN$", "r", stdin));
     setvbuf(stdin, NULL, _IONBF, 0);
 }
 
@@ -183,7 +183,7 @@ int WinMain(
             actual_end.QuadPart = qpc_start.QuadPart + (TARGET_FRAME_TIME_US * qpc_freq.QuadPart / 1000000);
             remaining.QuadPart = (actual_end.QuadPart - qpc_end.QuadPart) * 1000000 / qpc_freq.QuadPart;
             if (remaining.QuadPart > 2000) {
-                Sleep((remaining.QuadPart - 1000) / 1000);
+                Sleep((DWORD)((remaining.QuadPart - 1000) / 1000));
             }
 
             while (qpc_end.QuadPart < actual_end.QuadPart) {
