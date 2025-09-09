@@ -1,5 +1,3 @@
-#include <math.h>
-
 #include "../sponge.h"
 
 #define SPEED (4)

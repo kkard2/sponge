@@ -19,8 +19,9 @@ float       sponge_dot2(sponge_Vec2 v0, sponge_Vec2 v1);
 int  sponge_canvas_valid      (sponge_Texture c);
 void sponge_clear             (sponge_Texture c, uint32_t color);
 void sponge_draw_rect         (sponge_Texture c, uint32_t x0, uint32_t y0, uint32_t x1, uint32_t y1, uint32_t color);
+void sponge_draw_line         (sponge_Texture c,  int32_t x0,  int32_t y0,  int32_t x1,  int32_t y1, uint32_t color);
 void sponge_draw_texture      (sponge_Texture c, uint32_t x0, uint32_t y0, sponge_Texture tex);
-void sponge_draw_triangle_col (sponge_Texture c, int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint32_t color);
+void sponge_draw_triangle_col (sponge_Texture c,  int32_t x0,  int32_t y0,  int32_t x1,  int32_t y1,  int32_t x2,  int32_t y2, uint32_t color);
 void sponge_draw_triangle_col3(
     sponge_Texture c, int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2,
     uint32_t color0, uint32_t color1, uint32_t color2);
@@ -38,6 +39,7 @@ void sponge_draw_triangle_col3(
 #define SPONGE__CLAMP(val, min, max) ((val) < (min) ? (min) : ((val) > (max) ? (max) : (val)))
 #define SPONGE__MIN(x, y) ((x) < (y) ? (x) : (y))
 #define SPONGE__MAX(x, y) ((x) > (y) ? (x) : (y))
+#define SPONGE__ABS(x) ((x) >= 0 ? (x) : -(x))
 
 typedef struct {
     float a;
@@ -167,6 +169,31 @@ void sponge_draw_rect(sponge_Texture c, uint32_t x0, uint32_t y0, uint32_t x1, u
         for (uint32_t x = x0; x <= x1; x++) {
             row[x] = color;
         }
+    }
+}
+
+void sponge_draw_line(sponge_Texture c, int32_t x0, int32_t y0, int32_t x1, int32_t y1, uint32_t color) {
+    SPONGE_ASSERT(sponge_canvas_valid(c));
+
+    int32_t dx = x1 - x0;
+    dx = SPONGE__ABS(dx);
+    int32_t dy = y1 - y0;
+    dy = SPONGE__ABS(dy);
+    int32_t d = (2 * dy) - dx;
+
+    int32_t sx = (x0 < x1) ? 1 : -1;
+    int32_t sy = (y0 < y1) ? 1 : -1;
+    int32_t err = dx - dy;
+
+    while (1) {
+        if (x0 >= 0 && x0 < (int32_t)c.width && y0 >= 0 && y0 < (int32_t)c.height)
+            c.pixels[(y0 * c.stride) + x0] = color;
+
+        if (x0 == x1 && y0 == y1) break;
+
+        int32_t e2 = 2 * err;
+        if (e2 > -dy) { err -= dy; x0 += sx; }
+        if (e2 < dx)  { err += dx; y0 += sy; }
     }
 }
 
