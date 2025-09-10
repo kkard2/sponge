@@ -41,6 +41,9 @@ void sponge_draw_triangle_col3(
 #define SPONGE__MAX(x, y) ((x) > (y) ? (x) : (y))
 #define SPONGE__ABS(x) ((x) >= 0 ? (x) : -(x))
 
+// NOTE(kard): there are "better" macros that don't need a type, but this is simpler
+#define SPONGE__SWAP(x, y, T) { T SPONGE__SWAP_temp = x; y = x; x = SPONGE__SWAP_temp; }
+
 typedef struct {
     float a;
     float r;
@@ -179,13 +182,14 @@ void sponge_draw_line(sponge_Texture c, int32_t x0, int32_t y0, int32_t x1, int3
     dx = SPONGE__ABS(dx);
     int32_t dy = y1 - y0;
     dy = SPONGE__ABS(dy);
-    int32_t d = (2 * dy) - dx;
 
     int32_t sx = (x0 < x1) ? 1 : -1;
     int32_t sy = (y0 < y1) ? 1 : -1;
     int32_t err = dx - dy;
 
     while (1) {
+        // TODO(kard): "preprocess" line for this check to not be necessary
+        //             actually idk what is faster and how much line needs to be outside, check
         if (x0 >= 0 && x0 < (int32_t)c.width && y0 >= 0 && y0 < (int32_t)c.height)
             c.pixels[(y0 * c.stride) + x0] = color;
 
@@ -225,7 +229,7 @@ void sponge_draw_triangle_col(sponge_Texture c, int32_t x0, int32_t y0, int32_t 
 // NOTE(kard):
 // this does not accept floats on purpose.
 // there are more efficient algorithms for producing triangle pixels other than
-// checking every one of them in rectangle with barycentric coords (e.g. using Brehensam algorithm)
+// checking every one of them in rectangle with barycentric coords (e.g. using Bresenham algorithm)
 // and they can work with integer coordinates.
 // TODO(kard): this should be explored in the future
 // TODO(kard): backface culling?
@@ -233,6 +237,23 @@ void sponge_draw_triangle_col3(
     sponge_Texture c, int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2,
     uint32_t color0, uint32_t color1, uint32_t color2) {
     SPONGE_ASSERT(sponge_canvas_valid(c));
+
+    // order triangle so y0 <= y1 <= y2
+    if (y0 > y1) {
+        SPONGE__SWAP(x0,     x1,     int32_t);
+        SPONGE__SWAP(y0,     y1,     int32_t);
+        SPONGE__SWAP(color0, color1, uint32_t);
+    }
+    if (y1 > y2) {
+        SPONGE__SWAP(x1,     x2,     int32_t);
+        SPONGE__SWAP(y1,     y2,     int32_t);
+        SPONGE__SWAP(color1, color2, uint32_t);
+        if (y0 > y1) {
+            SPONGE__SWAP(x0,     x1,     int32_t);
+            SPONGE__SWAP(y0,     y1,     int32_t);
+            SPONGE__SWAP(color0, color1, uint32_t);
+        }
+    }
 
     sponge_Vec2 t0 = { .x = (float)x0, .y = (float)y0 };
     sponge_Vec2 t1 = { .x = (float)x1, .y = (float)y1 };
@@ -250,28 +271,129 @@ void sponge_draw_triangle_col3(
 
     sponge__BarycentricContext ctx = sponge__barycentric_init(t0, t1, t2);
 
-    uint32_t *row = c.pixels + (min_y * c.stride);
-
     sponge__ColorF color0f = sponge__colf_unpack(color0);
     sponge__ColorF color1f = sponge__colf_unpack(color1);
     sponge__ColorF color2f = sponge__colf_unpack(color2);
 
-    for (uint32_t y = min_y; y <= max_y; y++, row += c.stride) {
-        for (uint32_t x = x0; x <= max_x; x++) {
-            float u, v, w;
-            sponge_Vec2 p = { .x = (float)x, .y = (float)y };
-            sponge__barycentric(ctx, p, t0, t1, t2, &u, &v, &w);
-            if (u > 0.0f && v > 0.0f && w > 0.0f)
-            {
-                // TODO(kard): make more robust, this probably has a lot of off by 1 errors
-                sponge__ColorF c0 = sponge__colf_mul(color0f, u);
-                sponge__ColorF c1 = sponge__colf_mul(color1f, v);
-                sponge__ColorF c2 = sponge__colf_mul(color2f, w);
-                sponge__ColorF result = sponge__colf_add(c0, sponge__colf_add(c1, c2));
-                row[x] = sponge__colf_pack(result);
+    // TODO(kard): there is probably a better way to do this
+    // also, names are actually terrible, please rewrite this at some point (i won't)
+
+    int32_t b_x1 = x1;
+    int32_t b_y1 = y1;
+    int32_t b_x3_end;
+    if (y0 == y1 || y1 == y2)
+        b_x3_end = x1;
+    else
+        b_x3_end = (int32_t)(x0 + ((float)(y1 - y0) / (float)(y2 - y0)) * (float)(x2 - x0));
+
+
+    for (int32_t i = 0; i < 2; i++) {
+        int32_t b_x0, b_y0, b_x3, b_dx0, b_dx1, b_dy, b_d0, b_d1, b_sx0, b_sx1, b_sy, b_err0, b_err1;
+
+        // top-down, bottom of the triangle is flat
+        if (i == 0) {
+            b_x0 = x0; b_y0 = y0;
+            b_x3 = x0;
+            b_sy = 1;
+        // bottom-up, top of the triangle is flat
+        } else {
+            b_x0 = x2; b_y0 = y2;
+            b_x3 = x2;
+            b_sy = -1;
+        }
+
+        // this line will be handled by other iteration
+        if (b_y0 == b_y1)
+            continue;
+        // TODO(kard): there is a single line of overlap, fix?
+
+        b_dx0 = b_x1 - b_x0;
+        b_dx0 = SPONGE__ABS(b_dx0);
+        b_dx1 = b_x3_end - b_x0;
+        b_dx1 = SPONGE__ABS(b_dx1);
+        b_dy  = b_y1 - b_y0;
+        b_dy  = SPONGE__ABS(b_dy);
+
+        b_d0  = (2 * b_dy) - b_dx0;
+        b_d1  = (2 * b_dy) - b_dx1;
+
+        b_sx0 = (b_x0 < b_x1    ) ? 1 : -1;
+        b_sx1 = (b_x3 < b_x3_end) ? 1 : -1;
+
+        b_err0 = b_dx0 - b_dy;
+        b_err1 = b_dx1 - b_dy;
+
+        while (1) {
+
+            while (1) {
+                int32_t b_err02 = b_err0 * 2;
+                if (b_err02 > -b_dy) { b_err0 -= b_dy;  b_x0 += b_sx0; }
+                if (b_err02 < b_dx0) { b_err0 += b_dx0; break; }
             }
+            while (1) {
+                int32_t b_err12 = b_err1 * 2;
+                if (b_err12 > -b_dy) { b_err1 -= b_dy;  b_x3 += b_sx1; }
+                if (b_err12 < b_dx1) { b_err1 += b_dx1; break; }
+            }
+
+            //if (b_y0 >= 0 && b_y0 < (int32_t)c.height) {
+                //if (b_x0 >= 0 && b_x0 < (int32_t)c.width) {
+                    //c.pixels[b_y0 * c.stride + b_x0] = 0xFFFF0000;
+                //}
+                //if (b_x3 >= 0 && b_x3 < (int32_t)c.width) {
+                    //c.pixels[b_y0 * c.stride + b_x3] = 0xFF00FF00;
+                //}
+            //}
+
+            if (b_y0 >= 0 && b_y0 < (int32_t)c.height) {
+                int32_t y = b_y0;
+                uint32_t *row = c.pixels + (y * c.stride);
+
+                uint32_t x_min = (uint32_t)SPONGE__MAX(0,                    SPONGE__MIN(b_x0, b_x3));
+                uint32_t x_max = (uint32_t)SPONGE__MIN((int32_t)c.width - 1, SPONGE__MAX(b_x0, b_x3));
+                for (uint32_t x = x_min; x < x_max; x++) {
+                    float u, v, w;
+                    sponge_Vec2 p = { .x = (float)x, .y = (float)y };
+                    sponge__barycentric(ctx, p, t0, t1, t2, &u, &v, &w);
+                    sponge__ColorF c0 = sponge__colf_mul(color0f, u);
+                    sponge__ColorF c1 = sponge__colf_mul(color1f, v);
+                    sponge__ColorF c2 = sponge__colf_mul(color2f, w);
+                    sponge__ColorF result = sponge__colf_add(c0, sponge__colf_add(c1, c2));
+                    //row[x] = 0xFFFF00FF;
+                    row[x] = sponge__colf_pack(result);
+                }
+            }
+
+
+            if (b_y0 == b_y1)
+                break;
+
+            b_y0 += b_sy;
         }
     }
+    // int32_t dx = x1 - x0;
+    // dx = SPONGE__ABS(dx);
+    // int32_t dy = y1 - y0;
+    // dy = SPONGE__ABS(dy);
+    // int32_t d = (2 * dy) - dx;
+// 
+    // int32_t sx = (x0 < x1) ? 1 : -1;
+    // int32_t sy = (y0 < y1) ? 1 : -1;
+    // int32_t err = dx - dy;
+// 
+    // while (1) {
+        // // TODO(kard): "preprocess" line for this check to not be necessary
+        // //             actually idk what is faster and how much line needs to be outside, check
+        // if (x0 >= 0 && x0 < (int32_t)c.width && y0 >= 0 && y0 < (int32_t)c.height)
+            // c.pixels[(y0 * c.stride) + x0] = color;
+// 
+        // if (x0 == x1 && y0 == y1) break;
+// 
+        // int32_t e2 = 2 * err;
+        // if (e2 > -dy) { err -= dy; x0 += sx; }
+        // if (e2 < dx)  { err += dx; y0 += sy; }
+    // }
+
 }
 
 #endif // SPONGE_IMPLEMENTATION
