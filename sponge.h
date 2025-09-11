@@ -179,7 +179,6 @@ void sponge_draw_line(sponge_Texture c, int32_t x0, int32_t y0, int32_t x1, int3
     dx = SPONGE__ABS(dx);
     int32_t dy = y1 - y0;
     dy = SPONGE__ABS(dy);
-    int32_t d = (2 * dy) - dx;
 
     int32_t sx = (x0 < x1) ? 1 : -1;
     int32_t sy = (y0 < y1) ? 1 : -1;
@@ -222,13 +221,7 @@ void sponge_draw_triangle_col(sponge_Texture c, int32_t x0, int32_t y0, int32_t 
     sponge_draw_triangle_col3(c, x0, y0, x1, y1, x2, y2, color, color, color);
 }
 
-// NOTE(kard):
-// this does not accept floats on purpose.
-// there are more efficient algorithms for producing triangle pixels other than
-// checking every one of them in rectangle with barycentric coords (e.g. using Brehensam algorithm)
-// and they can work with integer coordinates.
-// TODO(kard): this should be explored in the future
-// TODO(kard): backface culling?
+// NOTE(kard): requires vertices to be in clockwise order
 void sponge_draw_triangle_col3(
     sponge_Texture c, int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2,
     uint32_t color0, uint32_t color1, uint32_t color2) {
@@ -256,14 +249,34 @@ void sponge_draw_triangle_col3(
     sponge__ColorF color1f = sponge__colf_unpack(color1);
     sponge__ColorF color2f = sponge__colf_unpack(color2);
 
+    int32_t edge0 = ((y0 - y1) * min_x) + ((x1 - x0) * min_y) + ((x0 * y1) - (x1 * y0));
+    int32_t edge1 = ((y1 - y2) * min_x) + ((x2 - x1) * min_y) + ((x1 * y2) - (x2 * y1));
+    int32_t edge2 = ((y2 - y0) * min_x) + ((x0 - x2) * min_y) + ((x2 * y0) - (x0 * y2));
+
     for (uint32_t y = min_y; y <= max_y; y++, row += c.stride) {
-        for (uint32_t x = x0; x <= max_x; x++) {
+        int32_t edge0a = edge0;
+        int32_t edge1a = edge1;
+        int32_t edge2a = edge2;
+        edge0 += (x1 - x0);
+        edge1 += (x2 - x1);
+        edge2 += (x0 - x2);
+
+        for (uint32_t x = min_x; x <= max_x; x++) {
+            int32_t edge0b = edge0a;
+            int32_t edge1b = edge1a;
+            int32_t edge2b = edge2a;
+            edge0a += (y0 - y1);
+            edge1a += (y1 - y2);
+            edge2a += (y2 - y0);
+            if (edge0b < 0 || edge1b < 0 || edge2b < 0) {
+                continue;
+            }
+
             float u, v, w;
             sponge_Vec2 p = { .x = (float)x, .y = (float)y };
             sponge__barycentric(ctx, p, t0, t1, t2, &u, &v, &w);
             if (u > 0.0f && v > 0.0f && w > 0.0f)
             {
-                // TODO(kard): make more robust, this probably has a lot of off by 1 errors
                 sponge__ColorF c0 = sponge__colf_mul(color0f, u);
                 sponge__ColorF c1 = sponge__colf_mul(color1f, v);
                 sponge__ColorF c2 = sponge__colf_mul(color2f, w);
@@ -275,4 +288,3 @@ void sponge_draw_triangle_col3(
 }
 
 #endif // SPONGE_IMPLEMENTATION
-
