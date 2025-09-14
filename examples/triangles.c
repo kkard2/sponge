@@ -1,4 +1,6 @@
 #include "../sponge.h"
+#define SPONGE_EXAMPLE_IMPLEMENTATION
+#include "../example.h"
 
 #define SPEED_ABS (2)
 #define GRID_SIZE (10)
@@ -6,8 +8,6 @@
 
 static int32_t offset = 0;
 static int32_t speed = SPEED_ABS;
-
-void init() {}
 
 void draw_frame(sponge_Texture c) {
     sponge_clear(c, sponge_color32_make(0xFF000000));

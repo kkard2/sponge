@@ -1,13 +1,13 @@
 #include <math.h>
 
 #include "../sponge.h"
+#define SPONGE_EXAMPLE_IMPLEMENTATION
+#include "../example.h"
 
 #define PI ((float)3.14159265358979323846)
 #define SPEED (0.5f / 360.0f * 2 * PI)
 static float angle = 0.0f;
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
-
-void init() {}
 
 void draw_frame(sponge_Texture c) {
     sponge_clear(c, sponge_color32_make(0xFF000000));

@@ -1,6 +1,9 @@
 #include <assert.h>
 
 #include "../sponge.h"
+#define SPONGE_EXAMPLE_IMPLEMENTATION
+#define SPONGE_EXAMPLE_INIT_DEFINED
+#include "../example.h"
 #include "../stb_image.h"
 
 #define SPEED_X_ABS 2
