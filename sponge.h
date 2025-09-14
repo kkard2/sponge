@@ -60,6 +60,7 @@ sponge_Vec2I sponge_vec2i_make(int32_t x, int32_t y);
 
 sponge_Vec2 sponge_vec2_add(sponge_Vec2 v0, sponge_Vec2 v1);
 sponge_Vec2 sponge_vec2_sub(sponge_Vec2 v0, sponge_Vec2 v1);
+sponge_Vec2 sponge_vec2_mul(sponge_Vec2 v0, float f);
 float       sponge_vec2_dot(sponge_Vec2 v0, sponge_Vec2 v1);
 
 sponge_Vec4 sponge_vec4_add(sponge_Vec4 v0, sponge_Vec4 v1);
@@ -79,6 +80,8 @@ void sponge_draw_rect   (sponge_Texture c, sponge_Vec2I v0, sponge_Vec2I v1, spo
 void sponge_draw_line   (sponge_Texture c, sponge_Vec2I v0, sponge_Vec2I v1, sponge_Color32 col);
 void sponge_draw_texture(sponge_Texture c, sponge_Vec2I offset, sponge_Texture tex);
 
+sponge_Color32 sponge_sample_texture(sponge_Vec2 uv, sponge_Texture tex);
+
 // tests on which side of the line p is (negative on the left, positive on the right)
 int32_t sponge_edge_function(sponge_Vec2I p, sponge_Vec2I v0, sponge_Vec2I v1);
 
@@ -96,6 +99,10 @@ void sponge_draw_triangle_col3(
     sponge_Texture c,
     sponge_Vec2I  v0,   sponge_Vec2I  v1,   sponge_Vec2I  v2,
     sponge_ColorF col0, sponge_ColorF col1, sponge_ColorF col2);
+void sponge_draw_triangle_uv(
+    sponge_Texture c,
+    sponge_Vec2I v0, sponge_Vec2I v1, sponge_Vec2I v2,
+    sponge_Vec2 uv0, sponge_Vec2 uv1, sponge_Vec2 uv2, sponge_Texture tex);
 
 #define SPONGE_CLAMP(val, min, max) ((val) < (min) ? (min) : ((val) > (max) ? (max) : (val)))
 #define SPONGE_MIN(x, y) ((x) < (y) ? (x) : (y))
@@ -165,6 +172,9 @@ sponge_Vec2 sponge_vec2_add(sponge_Vec2 v0, sponge_Vec2 v1) {
 }
 sponge_Vec2 sponge_vec2_sub(sponge_Vec2 v0, sponge_Vec2 v1) {
     return (sponge_Vec2){ .x = v0.x - v1.x, .y = v0.y - v1.y };
+}
+sponge_Vec2 sponge_vec2_mul(sponge_Vec2 v0, float f) {
+    return (sponge_Vec2){ .x = v0.x * f, .y = v0.y * f };
 }
 float       sponge_vec2_dot(sponge_Vec2 v0, sponge_Vec2 v1) {
     return (v0.x * v1.x) + (v0.y * v1.y);
@@ -274,6 +284,13 @@ void sponge_draw_texture(sponge_Texture c, sponge_Vec2I offset, sponge_Texture t
     }
 }
 
+sponge_Color32 sponge_sample_texture(sponge_Vec2 uv, sponge_Texture tex) {
+    SPONGE_ASSERT(sponge_texture_valid(tex));
+    uint32_t x = SPONGE_CLAMP((uint32_t)((float)tex.width  * uv.x), 0, tex.width  - 1);
+    uint32_t y = SPONGE_CLAMP((uint32_t)((float)tex.height * uv.y), 0, tex.height - 1);
+    return tex.pixels[(y * tex.stride_pixels) + x];
+}
+
 int32_t sponge_edge_function(sponge_Vec2I v0, sponge_Vec2I v1, sponge_Vec2I p) {
     return ((p.x - v0.x) * (v1.y - v0.y)) - ((p.y - v0.y) * (v1.x - v0.x));
 }
@@ -282,6 +299,7 @@ void    sponge_draw_triangle_init(
     sponge_Texture c, sponge_Vec2I v0, sponge_Vec2I v1, sponge_Vec2I v2,
     sponge_Vec2I *out_min, sponge_Vec2I *out_max, float *out_area2
 ) {
+    SPONGE_ASSERT(sponge_texture_valid(c));
     *out_min = sponge_vec2i_make(
         SPONGE_MAX(0, SPONGE_MIN(SPONGE_MIN(v0.x, v1.x), v2.x)),
         SPONGE_MAX(0, SPONGE_MIN(SPONGE_MIN(v0.y, v1.y), v2.y)));
@@ -330,6 +348,30 @@ void sponge_draw_triangle_col3(
                 result = sponge_vec4_add(result, sponge_vec4_mul(col1, w1));
                 result = sponge_vec4_add(result, sponge_vec4_mul(col2, w2));
                 row[x] = sponge_colorf_to_color32(result);
+            }
+        }
+    }
+}
+
+void sponge_draw_triangle_uv(
+    sponge_Texture c,
+    sponge_Vec2I v0, sponge_Vec2I v1, sponge_Vec2I v2,
+    sponge_Vec2 uv0, sponge_Vec2 uv1, sponge_Vec2 uv2, sponge_Texture tex
+) {
+    sponge_Vec2I min, max;
+    float area2;
+    sponge_draw_triangle_init(c, v0, v1, v2, &min, &max, &area2);
+    sponge_Color32 *row = c.pixels + (min.y * c.stride_pixels);
+
+    for (int32_t y = min.y; y <= max.y; y++, row += c.stride_pixels) {
+        for (int32_t x = min.x; x <= max.x; x++) {
+            float w0, w1, w2;
+            if (sponge_draw_triangle_iter(sponge_vec2i_make(x, y), v0, v1, v2, area2, &w0, &w1, &w2)) {
+                sponge_Vec2 uv = sponge_vec2_make(0.0f, 0.0f);
+                uv = sponge_vec2_add(uv, sponge_vec2_mul(uv0, w0));
+                uv = sponge_vec2_add(uv, sponge_vec2_mul(uv1, w1));
+                uv = sponge_vec2_add(uv, sponge_vec2_mul(uv2, w2));
+                row[x] = sponge_sample_texture(uv, tex);
             }
         }
     }

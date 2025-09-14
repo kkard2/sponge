@@ -1,5 +1,6 @@
 #define UNICODE
 #include <windows.h>
+#include <windowsx.h>
 #include <assert.h>
 #include <stdio.h>
 #include <io.h>
@@ -73,6 +74,11 @@ LRESULT __stdcall WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             uint32_t height = HIWORD(lParam);
             // TODO(kard): handle properly? (what does that even mean)
             assert(update_canvas(&canvas, width, height));
+        }
+        case WM_MOUSEMOVE: {
+            int32_t x = GET_X_LPARAM(lParam);
+            int32_t y = GET_Y_LPARAM(lParam);
+            mouse_move(x, y);
         }
         default:
             return DefWindowProc(hwnd, uMsg, wParam, lParam);
