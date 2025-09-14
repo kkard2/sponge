@@ -10,7 +10,7 @@ static int32_t speed = SPEED_ABS;
 void init() {}
 
 void draw_frame(sponge_Texture c) {
-    sponge_clear(c, 0xFF000000);
+    sponge_clear(c, sponge_color32_make(0xFF000000));
     offset += speed;
 
     if (offset > 30) {
@@ -29,10 +29,10 @@ void draw_frame(sponge_Texture c) {
 
         sponge_draw_triangle_col3(
             c,
-            x, y + offset_y,
-            x + offset_x, y,
-            x + (offset_x * 3 / 4), y + (offset_y * 3 / 4),
-            0xFFFF0000, 0xFF00FF00, 0xFF0000FF);
+            sponge_vec2i_make(x, y + offset_y),
+            sponge_vec2i_make(x + offset_x, y),
+            sponge_vec2i_make(x + (offset_x * 3 / 4), y + (offset_y * 3 / 4)),
+            sponge_colorf_make(0xFFFF0000), sponge_colorf_make(0xFF00FF00), sponge_colorf_make(0xFF0000FF));
         }
     }
 }

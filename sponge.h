@@ -50,6 +50,7 @@ sponge_Vec4 sponge_vec4_make(float x, float y, float z, float w);
 
 // in sponge apis components expected to be between 0.0 and 255.0
 #define sponge_ColorF sponge_Vec4
+sponge_ColorF sponge_colorf_make(uint32_t value);
 
 typedef struct {
     int32_t x;
@@ -69,7 +70,7 @@ sponge_Color32 sponge_colorf_to_color32(sponge_ColorF  col);
 
 // checks if tex.width or tex.height is equal to 0
 // calling sponge functions with invalid textures is not supported
-int sponge_texture_valid(sponge_Texture tex);
+int32_t sponge_texture_valid(sponge_Texture tex);
 
 // first argument is always rendering target (canvas)
 void sponge_clear       (sponge_Texture c, sponge_Color32 col);
@@ -78,17 +79,32 @@ void sponge_draw_rect   (sponge_Texture c, sponge_Vec2I v0, sponge_Vec2I v1, spo
 void sponge_draw_line   (sponge_Texture c, sponge_Vec2I v0, sponge_Vec2I v1, sponge_Color32 col);
 void sponge_draw_texture(sponge_Texture c, sponge_Vec2I offset, sponge_Texture tex);
 
-//void sponge_draw_triangle_col (sponge_Texture c, sponge_Vec2I v0, sponge_Vec2I v1, sponge_Vec2I v2, sponge_Color32 col);
-//void sponge_draw_triangle_col3(sponge_Texture c,
-//    sponge_Vec2I  v0,   sponge_Vec2I  v1,   sponge_Vec2I  v2,
-//    sponge_ColorF col0, sponge_ColorF col1, sponge_ColorF col2);
+// tests on which side of the line p is (negative on the left, positive on the right)
+int32_t sponge_edge_function(sponge_Vec2I p, sponge_Vec2I v0, sponge_Vec2I v1);
+
+// out_area2 is optional
+void    sponge_draw_triangle_init(
+    sponge_Texture c, sponge_Vec2I v0, sponge_Vec2I v1, sponge_Vec2I v2,
+    sponge_Vec2I *out_min, sponge_Vec2I *out_max, float *out_area2);
+
+// non-zero if p inside triangle, outputs only valid if inside
+int32_t sponge_draw_triangle_iter(
+    sponge_Vec2I p, sponge_Vec2I v0, sponge_Vec2I v1, sponge_Vec2I v2, float area2,
+    float *w0, float *w1, float *w2);
+
+void sponge_draw_triangle_col3(
+    sponge_Texture c,
+    sponge_Vec2I  v0,   sponge_Vec2I  v1,   sponge_Vec2I  v2,
+    sponge_ColorF col0, sponge_ColorF col1, sponge_ColorF col2);
 
 #define SPONGE_CLAMP(val, min, max) ((val) < (min) ? (min) : ((val) > (max) ? (max) : (val)))
 #define SPONGE_MIN(x, y) ((x) < (y) ? (x) : (y))
 #define SPONGE_MAX(x, y) ((x) > (y) ? (x) : (y))
 #define SPONGE_ABS(x) ((x) >= 0 ? (x) : -(x))
 
+
 // TODO(kard): prefix stripping
+
 
 #ifdef SPONGE_IMPLEMENTATION
 
@@ -105,6 +121,15 @@ sponge_Color32 sponge_color32_make(uint32_t value) {
     result.r = (value & 0x00FF0000) >> 16;
     result.g = (value & 0x0000FF00) >> 8;
     result.b = (value & 0x000000FF);
+    return result;
+}
+sponge_ColorF sponge_colorf_make(uint32_t value) {
+    sponge_ColorF result;
+    sponge_Color32 c32 = sponge_color32_make(value);
+    result.a = (float)c32.a;
+    result.r = (float)c32.r;
+    result.g = (float)c32.g;
+    result.b = (float)c32.b;
     return result;
 }
 sponge_Vec2 sponge_vec2_make(float x, float y) {
@@ -167,37 +192,8 @@ sponge_Vec4 sponge_vec4_mul(sponge_Vec4 v0, float f) {
     return v0;
 }
 
-// sponge__BarycentricContext sponge__barycentric_init(sponge_Vec2 t0, sponge_Vec2 t1, sponge_Vec2 t2) {
-    // sponge__BarycentricContext result;
-    // result.v0 = sponge_sub2(t1, t0);
-    // result.v1 = sponge_sub2(t2, t0);
-    // result.d00 = sponge_dot2(result.v0, result.v0);
-    // result.d01 = sponge_dot2(result.v0, result.v1);
-    // result.d11 = sponge_dot2(result.v1, result.v1);
-    // result.denom = (result.d00 * result.d11) - (result.d01 * result.d01);
-    // return result;
-// }
-// 
-// void sponge__barycentric(
-    // sponge__BarycentricContext ctx, sponge_Vec2 p,
-    // sponge_Vec2 t0,
-    // sponge_Vec2 t1,
-    // sponge_Vec2 t2,
-    // float *u, float *v, float *w
-// ) {
-    // sponge_Vec2 v2 = sponge_sub2(p, t0);
-    // float d20 = sponge_dot2(v2, ctx.v0);
-    // float d21 = sponge_dot2(v2, ctx.v1);
-    // float vr = (ctx.d11 * d20 - ctx.d01 * d21) / ctx.denom;
-    // float wr = (ctx.d00 * d21 - ctx.d01 * d20) / ctx.denom;
-    // float ur = 1.0f - vr - wr;
-    // *u = ur;
-    // *v = vr;
-    // *w = wr;
-// }
 
-
-int sponge_texture_valid(sponge_Texture tex) {
+int32_t sponge_texture_valid(sponge_Texture tex) {
     return tex.width != 0 && tex.height != 0 && tex.stride_pixels != 0;
 }
 
@@ -278,62 +274,65 @@ void sponge_draw_texture(sponge_Texture c, sponge_Vec2I offset, sponge_Texture t
     }
 }
 
-/*
-void sponge_draw_triangle_col(sponge_Texture c, int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint32_t color) {
-    sponge_draw_triangle_col3(c, x0, y0, x1, y1, x2, y2, color, color, color);
+int32_t sponge_edge_function(sponge_Vec2I v0, sponge_Vec2I v1, sponge_Vec2I p) {
+    return ((p.x - v0.x) * (v1.y - v0.y)) - ((p.y - v0.y) * (v1.x - v0.x));
 }
 
-// NOTE(kard):
-// this does not accept floats on purpose.
+void    sponge_draw_triangle_init(
+    sponge_Texture c, sponge_Vec2I v0, sponge_Vec2I v1, sponge_Vec2I v2,
+    sponge_Vec2I *out_min, sponge_Vec2I *out_max, float *out_area2
+) {
+    *out_min = sponge_vec2i_make(
+        SPONGE_MAX(0, SPONGE_MIN(SPONGE_MIN(v0.x, v1.x), v2.x)),
+        SPONGE_MAX(0, SPONGE_MIN(SPONGE_MIN(v0.y, v1.y), v2.y)));
+    *out_max = sponge_vec2i_make(
+        SPONGE_MIN((int32_t)c.width - 1,  SPONGE_MAX(SPONGE_MAX(v0.x, v1.x), v2.x)),
+        SPONGE_MIN((int32_t)c.height - 1, SPONGE_MAX(SPONGE_MAX(v0.y, v1.y), v2.y)));
+    if (out_area2) {
+        *out_area2 = (float)sponge_edge_function(v0, v1, v2);
+    }
+}
+
+// non-zero if p inside triangle, outputs only valid if inside
+int32_t sponge_draw_triangle_iter(
+    sponge_Vec2I p, sponge_Vec2I v0, sponge_Vec2I v1, sponge_Vec2I v2, float area2,
+    float *out_w0, float *out_w1, float *out_w2
+) {
+    int32_t w0 = sponge_edge_function(v1, v2, p);
+    int32_t w1 = sponge_edge_function(v2, v0, p);
+    int32_t w2 = sponge_edge_function(v0, v1, p);
+    // NOTE(kard): this is <= not >= because our y goes down not up, and we want clockwise winding
+    if (w0 <= 0 && w1 <= 0 && w2 <= 0) {
+        *out_w0 = (float)w0 / area2;
+        *out_w1 = (float)w1 / area2;
+        *out_w2 = (float)w2 / area2;
+        return 1;
+    }
+    return 0;
+}
+
 void sponge_draw_triangle_col3(
-    sponge_Texture c, int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2,
-    uint32_t color0, uint32_t color1, uint32_t color2) {
-    SPONGE_ASSERT(sponge_canvas_valid(c));
+    sponge_Texture c,
+    sponge_Vec2I  v0,   sponge_Vec2I  v1,   sponge_Vec2I  v2,
+    sponge_ColorF col0, sponge_ColorF col1, sponge_ColorF col2
+) {
+    sponge_Vec2I min, max;
+    float area2;
+    sponge_draw_triangle_init(c, v0, v1, v2, &min, &max, &area2);
+    sponge_Color32 *row = c.pixels + (min.y * c.stride_pixels);
 
-    sponge_Vec2 t0 = { .x = (float)x0, .y = (float)y0 };
-    sponge_Vec2 t1 = { .x = (float)x1, .y = (float)y1 };
-    sponge_Vec2 t2 = { .x = (float)x2, .y = (float)y2 };
-
-    int32_t smin_x = SPONGE__MIN(x0, SPONGE__MIN(x1, x2));
-    int32_t smax_x = SPONGE__MAX(x0, SPONGE__MAX(x1, x2));
-    int32_t smin_y = SPONGE__MIN(y0, SPONGE__MIN(y1, y2));
-    int32_t smax_y = SPONGE__MAX(y0, SPONGE__MAX(y1, y2));
-
-    uint32_t min_x = (uint32_t)SPONGE__CLAMP(smin_x, 0, (int32_t)(c.width - 1));
-    uint32_t max_x = (uint32_t)SPONGE__CLAMP(smax_x, 0, (int32_t)(c.width - 1));
-    uint32_t min_y = (uint32_t)SPONGE__CLAMP(smin_y, 0, (int32_t)(c.height - 1));
-    uint32_t max_y = (uint32_t)SPONGE__CLAMP(smax_y, 0, (int32_t)(c.height - 1));
-
-
-    uint32_t *row = c.pixels + (min_y * c.stride);
-
-    sponge__ColorF color0f = sponge__colf_unpack(color0);
-    sponge__ColorF color1f = sponge__colf_unpack(color1);
-    sponge__ColorF color2f = sponge__colf_unpack(color2);
-
-    for (uint32_t y = min_y; y <= max_y; y++, row += c.stride) {
-        for (uint32_t x = x0; x <= max_x; x++) {
-            float u, v, w;
-            sponge_Vec2 p = { .x = (float)x, .y = (float)y };
-            sponge__BarycentricContext ctx = sponge__barycentric_init(t0, t1, t2);
-            sponge__barycentric(ctx, p, t0, t1, t2, &u, &v, &w);
-            if (u > 0.0f && v > 0.0f && w > 0.0f)
-            {
-                sponge__ColorF c0 = sponge__colf_mul(color0f, u);
-                sponge__ColorF c1 = sponge__colf_mul(color1f, v);
-                sponge__ColorF c2 = sponge__colf_mul(color2f, w);
-                sponge__ColorF result = sponge__colf_add(c0, sponge__colf_add(c1, c2));
-                row[x] = sponge__colf_pack(result);
+    for (int32_t y = min.y; y <= max.y; y++, row += c.stride_pixels) {
+        for (int32_t x = min.x; x <= max.x; x++) {
+            float w0, w1, w2;
+            if (sponge_draw_triangle_iter(sponge_vec2i_make(x, y), v0, v1, v2, area2, &w0, &w1, &w2)) {
+                sponge_ColorF result = sponge_vec4_make(0.0f, 0.0f, 0.0f, 0.0f);
+                result = sponge_vec4_add(result, sponge_vec4_mul(col0, w0));
+                result = sponge_vec4_add(result, sponge_vec4_mul(col1, w1));
+                result = sponge_vec4_add(result, sponge_vec4_mul(col2, w2));
+                row[x] = sponge_colorf_to_color32(result);
             }
         }
     }
 }
-
-void sponge_draw_triangle_uv(
-    sponge_Texture c, int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t x2, int32_t y2,
-    uint32_t color0, uint32_t color1, uint32_t color2,
-    sponge_Vec2 uv0, sponge_Vec2 uv1, sponge_Vec2 uv2, sponge_Texture tex) {
-}
-*/
 
 #endif // SPONGE_IMPLEMENTATION
