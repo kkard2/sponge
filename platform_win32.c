@@ -14,8 +14,8 @@
 
 #include "example.h"
 
-#define DEFAULT_WIDTH 256
-#define DEFAULT_HEIGHT 256
+#define DEFAULT_WIDTH 1280
+#define DEFAULT_HEIGHT 720
 
 #define TARGET_FRAME_TIME_US 16666
 
@@ -26,7 +26,7 @@ static BITMAPINFO bmi;
 int update_canvas(sponge_Texture *canvas, uint32_t new_width, uint32_t new_height) {
     size_t new_count = new_width * new_height;
     if (new_count > pixels_buffer_count) {
-        uint32_t *new_pixels_buffer = malloc(new_count * sizeof(uint32_t));
+        sponge_Color32 *new_pixels_buffer = malloc(new_count * sizeof(uint32_t));
         if (!new_pixels_buffer)
             return 0;
         free(canvas->pixels);
@@ -35,7 +35,7 @@ int update_canvas(sponge_Texture *canvas, uint32_t new_width, uint32_t new_heigh
     }
     canvas->width = new_width;
     canvas->height = new_height;
-    canvas->stride = new_width; // TODO(kard): think about this if we want image to stay the same without redraw
+    canvas->stride_pixels = new_width; // TODO(kard): think about this if we want image to stay the same without redraw
 
     ZeroMemory(&bmi, sizeof(bmi));
     bmi.bmiHeader.biSize        = sizeof(BITMAPINFOHEADER);
@@ -126,6 +126,10 @@ int __stdcall WinMain(
     LARGE_INTEGER qpc_end;
     LARGE_INTEGER qpc_draw;
     LARGE_INTEGER qpc_frame;
+
+    LARGE_INTEGER qpc_running_draw = { 0 };
+    size_t qpc_running_draw_count = 0;
+
     QueryPerformanceFrequency(&qpc_freq);
     QueryPerformanceCounter(&qpc_start);
 
@@ -143,13 +147,15 @@ int __stdcall WinMain(
 
         if (!running) break;
 
-        if (sponge_canvas_valid(canvas))
+        if (sponge_texture_valid(canvas))
             draw_frame(canvas);
 
         QueryPerformanceCounter(&qpc_end);
         qpc_draw.QuadPart = qpc_end.QuadPart - qpc_start.QuadPart;
         qpc_draw.QuadPart *= 1000000; // microseconds
         qpc_draw.QuadPart /= qpc_freq.QuadPart;
+        qpc_running_draw.QuadPart += qpc_draw.QuadPart;
+        qpc_running_draw_count++;
 
         HDC hdc = GetDC(hwnd);
         StretchDIBits(
@@ -171,8 +177,9 @@ int __stdcall WinMain(
         qpc_frame.QuadPart *= 1000000; // microseconds
         qpc_frame.QuadPart /= qpc_freq.QuadPart;
 
-        fprintf(stderr, "draw time: %3lld.%03lldms, frame time: %3lld.%03lldms\n",
+        fprintf(stderr, "draw time: %3lld.%03lldms (avg: %3lld.%03lldms), frame time: %3lld.%03lldms\n",
             qpc_draw.QuadPart / 1000, qpc_draw.QuadPart % 1000,
+            qpc_running_draw.QuadPart / qpc_running_draw_count / 1000, qpc_running_draw.QuadPart / qpc_running_draw_count % 1000,
             qpc_frame.QuadPart / 1000, qpc_frame.QuadPart % 1000);
 
         // TODO(kard):

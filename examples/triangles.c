@@ -31,7 +31,7 @@ void draw_frame(sponge_Texture c) {
             c,
             x, y + offset_y,
             x + offset_x, y,
-            x + (offset_x / 4), y + (offset_y / 4),
+            x + (offset_x * 3 / 4), y + (offset_y * 3 / 4),
             0xFFFF0000, 0xFF00FF00, 0xFF0000FF);
         }
     }

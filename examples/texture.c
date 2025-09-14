@@ -20,16 +20,16 @@ void init() {
         assert(0);
     }
 
-    texture.stride = texture.width;
-    texture.pixels = (uint32_t *)data; // NOTE(kard): be careful if changing following loop
+    texture.stride_pixels = texture.width;
+    texture.pixels = (sponge_Color32 *)data; // NOTE(kard): be careful if changing following loop
 
-    // converting from stbi's RGBA to ARGB
+    // converting from stbi's RGBA
     for (size_t i = 0; i < texture.width * texture.height; i++) {
-        uint32_t result = 0;
-        result |= data[i * 4 + 0] << 16; // R
-        result |= data[i * 4 + 1] << 8;  // G
-        result |= data[i * 4 + 2] << 0;  // B
-        result |= data[i * 4 + 3] << 24; // A
+        sponge_Color32 result;
+        result.r = data[i * 4 + 0];
+        result.g = data[i * 4 + 1];
+        result.b = data[i * 4 + 2];
+        result.a = data[i * 4 + 3];
         texture.pixels[i] = result;
     }
 
@@ -40,7 +40,7 @@ void init() {
 }
 
 void draw_frame(sponge_Texture c) {
-    sponge_clear(c, 0xFF000000);
+    sponge_clear(c, sponge_color32_make(0xFF000000));
 
     pos_x += speed_x;
     pos_y += speed_y;
@@ -59,5 +59,5 @@ void draw_frame(sponge_Texture c) {
         speed_y = -SPEED_Y_ABS;
     }
 
-    sponge_draw_texture(c, pos_x, pos_y, texture);
+    sponge_draw_texture(c, sponge_vec2i_make(pos_x, pos_y), texture);
 }

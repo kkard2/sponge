@@ -10,7 +10,7 @@ static float angle = 0.0f;
 void init() {}
 
 void draw_frame(sponge_Texture c) {
-    sponge_clear(c, 0xFF000000);
+    sponge_clear(c, sponge_color32_make(0xFF000000));
     angle += SPEED;
 
     float x = sinf(angle);
@@ -19,7 +19,7 @@ void draw_frame(sponge_Texture c) {
 
     sponge_draw_line(
         c,
-        half + (int32_t)( x * (float)half), half + (int32_t)( y * (float)half),
-        half + (int32_t)(-x * (float)half), half + (int32_t)(-y * (float)half),
-        0xFFFF00FF);
+        sponge_vec2i_make(half + (int32_t)( x * (float)half), half + (int32_t)( y * (float)half)),
+        sponge_vec2i_make(half + (int32_t)(-x * (float)half), half + (int32_t)(-y * (float)half)),
+        sponge_color32_make(0xFFFF00FF));
 }
