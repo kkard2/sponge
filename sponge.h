@@ -69,6 +69,29 @@ sponge_Vec4 sponge_vec4_mul(sponge_Vec4 v0, float f);
 sponge_ColorF  sponge_color32_to_colorf(sponge_Color32 col);
 sponge_Color32 sponge_colorf_to_color32(sponge_ColorF  col);
 
+
+// row-major
+typedef union {
+    struct {
+        float c00; float c01; float c02; float c03;
+        float c10; float c11; float c12; float c13;
+        float c20; float c21; float c22; float c23;
+        float c30; float c31; float c32; float c33;
+    };
+    float m[4][4];
+    sponge_Vec4 rows[4];
+} sponge_Mat4;
+
+sponge_Mat4 sponge_mat4_mul_mat4(sponge_Mat4 m0, sponge_Mat4 m1);
+sponge_Vec4 sponge_vec4_mul_mat4(sponge_Vec4 v0, sponge_Mat4 m0);
+sponge_Vec3 sponge_vec3_mul_mat4(sponge_Vec3 v0, sponge_Mat4 m0); // sets .w to 1 and divides by .w at the end if necessary
+sponge_Mat4 sponge_mat4_identity();
+sponge_Mat4 sponge_mat4_translate(sponge_Vec3 translation);
+// TODO(kard): quaternion type beat
+sponge_Mat4 sponge_mat4_rotate(sponge_Vec3 euler); // y -> x -> z order
+sponge_Mat4 sponge_mat4_scale(sponge_Vec3 scale);
+
+
 // checks if tex.width or tex.height is equal to 0
 // calling sponge functions with invalid textures is not supported
 int32_t sponge_texture_valid(sponge_Texture tex);
@@ -200,6 +223,80 @@ sponge_Vec4 sponge_vec4_mul(sponge_Vec4 v0, float f) {
     v0.g *= f;
     v0.b *= f;
     return v0;
+}
+
+sponge_Mat4 sponge_mat4_mul_mat4(sponge_Mat4 m0, sponge_Mat4 m1) {
+    sponge_Mat4 result;
+    for (int32_t i = 0; i < 4; i++) {
+        for (int32_t j = 0; j < 4; j++) {
+            result.m[i][j] =
+                (m0.m[i][0] * m1.m[0][j]) +
+                (m0.m[i][1] * m1.m[1][j]) +
+                (m0.m[i][2] * m1.m[2][j]) +
+                (m0.m[i][3] * m1.m[3][j]);
+        }
+    }
+    return result;
+}
+sponge_Vec4 sponge_vec4_mul_mat4(sponge_Vec4 v0, sponge_Mat4 m0) {
+    sponge_Vec4 v;
+    v.x = (v0.x * m0.c00) + (v0.y * m0.c10) + (v0.z * m0.c20) + (v0.w * m0.c30);
+    v.y = (v0.x * m0.c01) + (v0.y * m0.c11) + (v0.z * m0.c21) + (v0.w * m0.c31);
+    v.z = (v0.x * m0.c02) + (v0.y * m0.c12) + (v0.z * m0.c22) + (v0.w * m0.c32);
+    v.w = (v0.x * m0.c03) + (v0.y * m0.c13) + (v0.z * m0.c23) + (v0.w * m0.c33);
+    return v;
+}
+sponge_Vec3 sponge_vec3_mul_mat4(sponge_Vec3 v0, sponge_Mat4 m0) {
+    sponge_Vec4 v = sponge_vec4_mul_mat4(sponge_vec4_make(v0.x, v0.y, v0.z, 1.0f), m0);
+    if (v.w != 1.0f && v.w != 0.0f)
+        return sponge_vec3_make(v.x / v.w, v.y / v.w, v.z / v.w);
+    else
+        return sponge_vec3_make(v.x, v.y, v.z);
+}
+
+sponge_Mat4 sponge_mat4_identity() {
+    sponge_Mat4 m;
+    m.c00 = 1.0f; m.c01 = 0.0f; m.c02 = 0.0f; m.c03 = 0.0f;
+    m.c10 = 0.0f; m.c11 = 1.0f; m.c12 = 0.0f; m.c13 = 0.0f;
+    m.c20 = 0.0f; m.c21 = 0.0f; m.c22 = 1.0f; m.c23 = 0.0f;
+    m.c30 = 0.0f; m.c31 = 0.0f; m.c32 = 0.0f; m.c33 = 1.0f;
+    return m;
+}
+
+sponge_Mat4 sponge_mat4_translate(sponge_Vec3 translation) {
+    sponge_Mat4 m = sponge_mat4_identity();
+    m.c30 = translation.x;
+    m.c31 = translation.y;
+    m.c32 = translation.z;
+    return m;
+}
+
+sponge_Mat4 sponge_mat4_rotate(sponge_Vec3 euler) {
+    // TOOD(kard): make this not stupid
+    float sx = sinf(euler.x); float cx = cosf(euler.x);
+    float sy = sinf(euler.y); float cy = cosf(euler.y);
+    float sz = sinf(euler.z); float cz = cosf(euler.z);
+    sponge_Mat4 mx = sponge_mat4_identity();
+    mx.c00 =   1; mx.c01 =   0; mx.c02 =   0;
+    mx.c10 =   0; mx.c11 =  cx; mx.c12 =  sx;
+    mx.c20 =   0; mx.c21 = -sx; mx.c22 =  cx;
+    sponge_Mat4 my = sponge_mat4_identity();
+    my.c00 =  cy; my.c01 =   0; my.c02 = -sy;
+    my.c10 =   0; my.c11 =   1; my.c12 =   0;
+    my.c20 =  sy; my.c21 =   0; my.c22 =  cy;
+    sponge_Mat4 mz = sponge_mat4_identity();
+    mz.c00 =  cz; mz.c01 =  sz; mz.c02 =   0;
+    mz.c10 = -sz; mz.c11 =  cz; mz.c12 =   0;
+    mz.c20 =   0; mz.c21 =   0; mz.c22 =   1;
+    return sponge_mat4_mul_mat4(sponge_mat4_mul_mat4(my, mx), mz);
+}
+
+sponge_Mat4 sponge_mat4_scale(sponge_Vec3 scale) {
+    sponge_Mat4 m = sponge_mat4_identity();
+    m.c00 = scale.x;
+    m.c11 = scale.y;
+    m.c22 = scale.z;
+    return m;
 }
 
 
