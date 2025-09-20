@@ -86,10 +86,10 @@ sponge_Mat4 sponge_mat4_mul_mat4(sponge_Mat4 m0, sponge_Mat4 m1);
 sponge_Vec4 sponge_vec4_mul_mat4(sponge_Vec4 v0, sponge_Mat4 m0);
 sponge_Vec3 sponge_vec3_mul_mat4(sponge_Vec3 v0, sponge_Mat4 m0); // sets .w to 1 and divides by .w at the end if necessary
 sponge_Mat4 sponge_mat4_identity();
-sponge_Mat4 sponge_mat4_translate(sponge_Vec3 translation);
+sponge_Mat4 sponge_mat4_translate(float x, float y, float z);
 // TODO(kard): quaternion type beat
-sponge_Mat4 sponge_mat4_rotate(sponge_Vec3 euler); // y -> x -> z order
-sponge_Mat4 sponge_mat4_scale(sponge_Vec3 scale);
+sponge_Mat4 sponge_mat4_rotate(float x, float y, float z); // y -> x -> z order
+sponge_Mat4 sponge_mat4_scale(float x, float y, float z);
 
 
 // checks if tex.width or tex.height is equal to 0
@@ -263,19 +263,19 @@ sponge_Mat4 sponge_mat4_identity() {
     return m;
 }
 
-sponge_Mat4 sponge_mat4_translate(sponge_Vec3 translation) {
+sponge_Mat4 sponge_mat4_translate(float x, float y, float z) {
     sponge_Mat4 m = sponge_mat4_identity();
-    m.c30 = translation.x;
-    m.c31 = translation.y;
-    m.c32 = translation.z;
+    m.c30 = x;
+    m.c31 = y;
+    m.c32 = z;
     return m;
 }
 
-sponge_Mat4 sponge_mat4_rotate(sponge_Vec3 euler) {
+sponge_Mat4 sponge_mat4_rotate(float x, float y, float z) {
     // TOOD(kard): make this not stupid
-    float sx = sinf(euler.x); float cx = cosf(euler.x);
-    float sy = sinf(euler.y); float cy = cosf(euler.y);
-    float sz = sinf(euler.z); float cz = cosf(euler.z);
+    float sx = sinf(x); float cx = cosf(x);
+    float sy = sinf(y); float cy = cosf(y);
+    float sz = sinf(z); float cz = cosf(z);
     sponge_Mat4 mx = sponge_mat4_identity();
     mx.c00 =   1; mx.c01 =   0; mx.c02 =   0;
     mx.c10 =   0; mx.c11 =  cx; mx.c12 =  sx;
@@ -291,11 +291,11 @@ sponge_Mat4 sponge_mat4_rotate(sponge_Vec3 euler) {
     return sponge_mat4_mul_mat4(sponge_mat4_mul_mat4(my, mx), mz);
 }
 
-sponge_Mat4 sponge_mat4_scale(sponge_Vec3 scale) {
+sponge_Mat4 sponge_mat4_scale(float x, float y, float z) {
     sponge_Mat4 m = sponge_mat4_identity();
-    m.c00 = scale.x;
-    m.c11 = scale.y;
-    m.c22 = scale.z;
+    m.c00 = x;
+    m.c11 = y;
+    m.c22 = z;
     return m;
 }
 

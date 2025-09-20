@@ -13,9 +13,9 @@ void draw_frame(sponge_Texture c) {
     sponge_Vec3 v1 = sponge_vec3_make(0.8f, 0.8f, 0.0f);
     sponge_Vec3 v2 = sponge_vec3_make(-0.8f, 0.8f, 0.0f);
 
-    sponge_Mat4 m = sponge_mat4_rotate(sponge_vec3_make(0.0f, 0.0f, angle));
-    m = sponge_mat4_mul_mat4(m, sponge_mat4_translate(sponge_vec3_make(1.0f, 1.0f, 0.0f)));
-    m = sponge_mat4_mul_mat4(m, sponge_mat4_scale(sponge_vec3_make((float)(c.width / 2), (float)(c.height / 2), 1.0f)));
+    sponge_Mat4 m = sponge_mat4_rotate(0.0f, 0.0f, angle);
+    m = sponge_mat4_mul_mat4(m, sponge_mat4_translate(1.0f, 1.0f, 0.0f));
+    m = sponge_mat4_mul_mat4(m, sponge_mat4_scale((float)(c.width / 2), (float)(c.height / 2), 1.0f));
 
     v0 = sponge_vec3_mul_mat4(v0, m);
     v1 = sponge_vec3_mul_mat4(v1, m);
