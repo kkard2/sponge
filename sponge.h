@@ -1,7 +1,7 @@
 #include <stdint.h>
+#include <math.h>
 
 typedef union {
-    // do not rely on byte order of this field (unless you only support one platform)
     uint32_t value;
     struct {
         uint8_t b;
@@ -90,6 +90,7 @@ sponge_Mat4 sponge_mat4_translate(float x, float y, float z);
 // TODO(kard): quaternion type beat
 sponge_Mat4 sponge_mat4_rotate(float x, float y, float z); // y -> x -> z order
 sponge_Mat4 sponge_mat4_scale(float x, float y, float z);
+sponge_Mat4 sponge_mat4_projection(float fov_y, float aspect, float near, float far); // right-handed, looking down -z
 
 
 // checks if tex.width or tex.height is equal to 0
@@ -98,6 +99,7 @@ int32_t sponge_texture_valid(sponge_Texture tex);
 
 // first argument is always rendering target (canvas)
 void sponge_clear       (sponge_Texture c, sponge_Color32 col);
+void sponge_clear_3d    (sponge_Texture c, float *depths, sponge_Color32 col);
 
 void sponge_draw_rect   (sponge_Texture c, sponge_Vec2I v0, sponge_Vec2I v1, sponge_Color32 col);
 void sponge_draw_line   (sponge_Texture c, sponge_Vec2I v0, sponge_Vec2I v1, sponge_Color32 col);
@@ -126,6 +128,13 @@ void sponge_draw_triangle_uv(
     sponge_Texture c,
     sponge_Vec2I v0, sponge_Vec2I v1, sponge_Vec2I v2,
     sponge_Vec2 uv0, sponge_Vec2 uv1, sponge_Vec2 uv2, sponge_Texture tex);
+
+
+void sponge_draw_mesh_col(
+    sponge_Texture c, float *depths,
+    sponge_Mat4 model, sponge_Mat4 view, sponge_Mat4 proj,
+    sponge_Vec3 *positions, sponge_Color32 *colors, int32_t *triangles, size_t triangles_count);
+
 
 #define SPONGE_CLAMP(val, min, max) ((val) < (min) ? (min) : ((val) > (max) ? (max) : (val)))
 #define SPONGE_MIN(x, y) ((x) < (y) ? (x) : (y))
@@ -299,6 +308,16 @@ sponge_Mat4 sponge_mat4_scale(float x, float y, float z) {
     return m;
 }
 
+sponge_Mat4 sponge_mat4_projection(float fov_y, float aspect, float znear, float zfar) {
+    float f = 1.0f / tanf(fov_y / 2.0f);
+    sponge_Mat4 m;
+    m.c00 = f / aspect; m.c01 = 0.0f; m.c02 = 0.0f;                   m.c03 = 0.0f;
+    m.c10 = 0.0f;       m.c11 = f;    m.c12 = 0.0f;                   m.c13 = 0.0f;
+    m.c20 = 0.0f;       m.c21 = 0.0f; m.c22 = -zfar / (zfar - znear); m.c23 = (-znear * zfar) / (zfar - znear);
+    m.c30 = 0.0f;       m.c31 = 0.0f; m.c32 = -1.0f;                  m.c33 = 0.0f;
+    return m;
+}
+
 
 int32_t sponge_texture_valid(sponge_Texture tex) {
     return tex.width != 0 && tex.height != 0 && tex.stride_pixels != 0;
@@ -311,6 +330,15 @@ void sponge_clear(sponge_Texture c, sponge_Color32 col) {
     for (uint32_t y = 0; y < c.height; y++, row += c.stride_pixels) {
         for (uint32_t x = 0; x < c.width; x++) {
             row[x] = col;
+        }
+    }
+}
+void sponge_clear_3d(sponge_Texture c, float *depths, sponge_Color32 col) {
+    sponge_clear(c, col);
+    float *row = depths;
+    for (uint32_t y = 0; y < c.height; y++, row += c.stride_pixels) {
+        for (uint32_t x = 0; x < c.width; x++) {
+            row[x] = INFINITY;
         }
     }
 }
@@ -469,6 +497,65 @@ void sponge_draw_triangle_uv(
                 uv = sponge_vec2_add(uv, sponge_vec2_mul(uv1, w1));
                 uv = sponge_vec2_add(uv, sponge_vec2_mul(uv2, w2));
                 row[x] = sponge_sample_texture(uv, tex);
+            }
+        }
+    }
+}
+
+
+void sponge_draw_mesh_col(
+    sponge_Texture c, float *depths,
+    sponge_Mat4 model, sponge_Mat4 view, sponge_Mat4 proj,
+    sponge_Vec3 *positions, sponge_Color32 *colors, int32_t *triangles, size_t triangles_count
+) {
+    sponge_Mat4 mvp = sponge_mat4_mul_mat4(sponge_mat4_mul_mat4(model, view), proj);
+    for (size_t i = 0; i < triangles_count; i += 3) {
+        int32_t t0 = triangles[i + 0];
+        int32_t t1 = triangles[i + 1];
+        int32_t t2 = triangles[i + 2];
+
+        sponge_Vec3 v0 = positions[t0];
+        sponge_Vec3 v1 = positions[t1];
+        sponge_Vec3 v2 = positions[t2];
+
+        v0 = sponge_vec3_mul_mat4(v0, mvp);
+        v1 = sponge_vec3_mul_mat4(v1, mvp);
+        v2 = sponge_vec3_mul_mat4(v2, mvp);
+
+        // TODO(kard): clipping
+
+        sponge_Vec2I v0i = sponge_vec2i_make((int32_t)((v0.x + 1.0f) * (c.width / 2)), (int32_t)((v0.y + 1.0f) * (c.height / 2)));
+        sponge_Vec2I v1i = sponge_vec2i_make((int32_t)((v1.x + 1.0f) * (c.width / 2)), (int32_t)((v1.y + 1.0f) * (c.height / 2)));
+        sponge_Vec2I v2i = sponge_vec2i_make((int32_t)((v2.x + 1.0f) * (c.width / 2)), (int32_t)((v2.y + 1.0f) * (c.height / 2)));
+        v0i.y = c.height - v0i.y;
+        v1i.y = c.height - v1i.y;
+        v2i.y = c.height - v2i.y;
+
+
+        sponge_Vec2I min, max;
+        float area2;
+        sponge_draw_triangle_init(c, v0i, v1i, v2i, &min, &max, &area2);
+        sponge_Color32 *row = c.pixels + (min.y * c.stride_pixels);
+        float *depth_row = depths + (min.y * c.stride_pixels);
+
+        for (int32_t y = min.y; y <= max.y; y++, row += c.stride_pixels, depth_row += c.stride_pixels) {
+            for (int32_t x = min.x; x <= max.x; x++) {
+                float w0, w1, w2;
+                if (sponge_draw_triangle_iter(sponge_vec2i_make(x, y), v0i, v1i, v2i, area2, &w0, &w1, &w2)) {
+                    float depth = (v0.z * w0) + (v1.z * w1) + (v2.z * w2);
+                    if (depth < depth_row[x] && depth <= 1.0f && depth >= 0.0f) {
+                        depth_row[x] = depth;
+
+                        sponge_ColorF c0 = sponge_color32_to_colorf(colors[t0]);
+                        sponge_ColorF c1 = sponge_color32_to_colorf(colors[t1]);
+                        sponge_ColorF c2 = sponge_color32_to_colorf(colors[t2]);
+                        sponge_ColorF result = sponge_vec4_make(0.0f, 0.0f, 0.0f, 0.0f);
+                        result = sponge_vec4_add(result, sponge_vec4_mul(c0, w0));
+                        result = sponge_vec4_add(result, sponge_vec4_mul(c1, w1));
+                        result = sponge_vec4_add(result, sponge_vec4_mul(c2, w2));
+                        row[x] = sponge_colorf_to_color32(result);
+                    }
+                }
             }
         }
     }

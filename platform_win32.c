@@ -22,16 +22,23 @@
 
 static size_t pixels_buffer_count;
 static sponge_Texture canvas;
+static float *depths;
 static BITMAPINFO bmi;
 
-int update_canvas(sponge_Texture *canvas, uint32_t new_width, uint32_t new_height) {
+int update_canvas(sponge_Texture *canvas, float **depths, uint32_t new_width, uint32_t new_height) {
     size_t new_count = new_width * new_height;
     if (new_count > pixels_buffer_count) {
         sponge_Color32 *new_pixels_buffer = malloc(new_count * sizeof(uint32_t));
-        if (!new_pixels_buffer)
+        float *new_depths = malloc(new_count * sizeof(float));
+        if (!new_pixels_buffer || !new_depths) {
+            free(new_pixels_buffer);
+            free(new_pixels_buffer);
             return 0;
+        }
         free(canvas->pixels);
+        free(*depths);
         canvas->pixels = new_pixels_buffer;
+        *depths = new_depths;
         pixels_buffer_count = new_count;
     }
     canvas->width = new_width;
@@ -73,7 +80,7 @@ LRESULT __stdcall WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             uint32_t width = LOWORD(lParam);
             uint32_t height = HIWORD(lParam);
             // TODO(kard): handle properly? (what does that even mean)
-            assert(update_canvas(&canvas, width, height));
+            assert(update_canvas(&canvas, &depths, width, height));
         }
         case WM_MOUSEMOVE: {
             int32_t x = GET_X_LPARAM(lParam);
@@ -118,7 +125,7 @@ int __stdcall WinMain(
     if (hwnd == NULL)
         return 1;
 
-    update_canvas(&canvas, DEFAULT_WIDTH, DEFAULT_HEIGHT);
+    update_canvas(&canvas, &depths, DEFAULT_WIDTH, DEFAULT_HEIGHT);
 
     ShowWindow(hwnd, nShowCmd);
 
@@ -154,7 +161,7 @@ int __stdcall WinMain(
         if (!running) break;
 
         if (sponge_texture_valid(canvas))
-            draw_frame(canvas);
+            draw_frame_3d(canvas, depths);
 
         QueryPerformanceCounter(&qpc_end);
         qpc_draw.QuadPart = qpc_end.QuadPart - qpc_start.QuadPart;
