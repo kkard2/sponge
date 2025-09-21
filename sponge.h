@@ -118,7 +118,7 @@ void    sponge_draw_triangle_init(
 // non-zero if p inside triangle, outputs only valid if inside
 int32_t sponge_draw_triangle_iter(
     sponge_Vec2I p, sponge_Vec2I v0, sponge_Vec2I v1, sponge_Vec2I v2, float area2,
-    float *w0, float *w1, float *w2);
+    float *out_w0, float *out_w1, float *out_w2);
 
 void sponge_draw_triangle_col3(
     sponge_Texture c,
@@ -129,6 +129,23 @@ void sponge_draw_triangle_uv(
     sponge_Vec2I v0, sponge_Vec2I v1, sponge_Vec2I v2,
     sponge_Vec2 uv0, sponge_Vec2 uv1, sponge_Vec2 uv2, sponge_Texture tex);
 
+
+typedef struct {
+    int32_t t0, t1, t2;
+    sponge_Vec3 v0_ndc, v1_ndc, v2_ndc;
+    sponge_Vec2I v0_pixel, v1_pixel, v2_pixel;
+    sponge_Vec2I min_pixel, max_pixel;
+    float area2;
+} sponge_DrawMeshTriangleContext;
+
+sponge_DrawMeshTriangleContext sponge_draw_mesh_triangle_init(
+    sponge_Texture c, sponge_Mat4 mvp,
+    sponge_Vec3 *positions, int32_t *triangles, size_t triangle_start_index);
+
+// non-zero if p inside triangle and depth test succeeds, outputs only valid if non-zero, depth is updated if non-zero
+int32_t sponge_draw_mesh_triangle_iter(
+    sponge_DrawMeshTriangleContext ctx, sponge_Vec2I p, float *inout_depth,
+    float *out_w0, float *out_w1, float *out_w2);
 
 void sponge_draw_mesh_col(
     sponge_Texture c, float *depths,
@@ -436,7 +453,6 @@ void    sponge_draw_triangle_init(
     }
 }
 
-// non-zero if p inside triangle, outputs only valid if inside
 int32_t sponge_draw_triangle_iter(
     sponge_Vec2I p, sponge_Vec2I v0, sponge_Vec2I v1, sponge_Vec2I v2, float area2,
     float *out_w0, float *out_w1, float *out_w2
@@ -503,6 +519,50 @@ void sponge_draw_triangle_uv(
 }
 
 
+sponge_DrawMeshTriangleContext sponge_draw_mesh_triangle_init(
+    sponge_Texture c, sponge_Mat4 mvp,
+    sponge_Vec3 *positions, int32_t *triangles, size_t triangle_start_index
+) {
+    sponge_DrawMeshTriangleContext result;
+    result.t0 = triangles[triangle_start_index + 0];
+    result.t1 = triangles[triangle_start_index + 1];
+    result.t2 = triangles[triangle_start_index + 2];
+
+    result.v0_ndc = sponge_vec3_mul_mat4(positions[result.t0], mvp);
+    result.v1_ndc = sponge_vec3_mul_mat4(positions[result.t1], mvp);
+    result.v2_ndc = sponge_vec3_mul_mat4(positions[result.t2], mvp);
+
+    // TODO(kard): clipping?
+
+    uint32_t halfw = c.width / 2;
+    uint32_t halfh = c.height / 2;
+    result.v0_pixel = sponge_vec2i_make((int32_t)((result.v0_ndc.x + 1.0f) * halfw), (int32_t)((result.v0_ndc.y + 1.0f) * halfh));
+    result.v1_pixel = sponge_vec2i_make((int32_t)((result.v1_ndc.x + 1.0f) * halfw), (int32_t)((result.v1_ndc.y + 1.0f) * halfh));
+    result.v2_pixel = sponge_vec2i_make((int32_t)((result.v2_ndc.x + 1.0f) * halfw), (int32_t)((result.v2_ndc.y + 1.0f) * halfh));
+    result.v0_pixel.y = c.height - result.v0_pixel.y;
+    result.v1_pixel.y = c.height - result.v1_pixel.y;
+    result.v2_pixel.y = c.height - result.v2_pixel.y;
+
+    sponge_draw_triangle_init(c, result.v0_pixel, result.v1_pixel, result.v2_pixel, &result.min_pixel, &result.max_pixel, &result.area2);
+
+    return result;
+}
+
+int32_t sponge_draw_mesh_triangle_iter(
+    sponge_DrawMeshTriangleContext ctx, sponge_Vec2I p, float *inout_depth,
+    float *out_w0, float *out_w1, float *out_w2
+) {
+    if (sponge_draw_triangle_iter(p, ctx.v0_pixel, ctx.v1_pixel, ctx.v2_pixel, ctx.area2, out_w0, out_w1, out_w2)) {
+        float depth = (ctx.v0_ndc.z * (*out_w0)) + (ctx.v1_ndc.z * (*out_w1)) + (ctx.v2_ndc.z * (*out_w2));
+        if (depth < *inout_depth) {
+            *inout_depth = depth;
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
 void sponge_draw_mesh_col(
     sponge_Texture c, float *depths,
     sponge_Mat4 model, sponge_Mat4 view, sponge_Mat4 proj,
@@ -510,51 +570,22 @@ void sponge_draw_mesh_col(
 ) {
     sponge_Mat4 mvp = sponge_mat4_mul_mat4(sponge_mat4_mul_mat4(model, view), proj);
     for (size_t i = 0; i < triangles_count; i += 3) {
-        int32_t t0 = triangles[i + 0];
-        int32_t t1 = triangles[i + 1];
-        int32_t t2 = triangles[i + 2];
+        sponge_DrawMeshTriangleContext ctx = sponge_draw_mesh_triangle_init(c, mvp, positions, triangles, i);
+        sponge_Color32 *row = c.pixels + (ctx.min_pixel.y * c.stride_pixels);
+        float *depth_row = depths + (ctx.min_pixel.y * c.stride_pixels);
 
-        sponge_Vec3 v0 = positions[t0];
-        sponge_Vec3 v1 = positions[t1];
-        sponge_Vec3 v2 = positions[t2];
-
-        v0 = sponge_vec3_mul_mat4(v0, mvp);
-        v1 = sponge_vec3_mul_mat4(v1, mvp);
-        v2 = sponge_vec3_mul_mat4(v2, mvp);
-
-        // TODO(kard): clipping
-
-        sponge_Vec2I v0i = sponge_vec2i_make((int32_t)((v0.x + 1.0f) * (c.width / 2)), (int32_t)((v0.y + 1.0f) * (c.height / 2)));
-        sponge_Vec2I v1i = sponge_vec2i_make((int32_t)((v1.x + 1.0f) * (c.width / 2)), (int32_t)((v1.y + 1.0f) * (c.height / 2)));
-        sponge_Vec2I v2i = sponge_vec2i_make((int32_t)((v2.x + 1.0f) * (c.width / 2)), (int32_t)((v2.y + 1.0f) * (c.height / 2)));
-        v0i.y = c.height - v0i.y;
-        v1i.y = c.height - v1i.y;
-        v2i.y = c.height - v2i.y;
-
-
-        sponge_Vec2I min, max;
-        float area2;
-        sponge_draw_triangle_init(c, v0i, v1i, v2i, &min, &max, &area2);
-        sponge_Color32 *row = c.pixels + (min.y * c.stride_pixels);
-        float *depth_row = depths + (min.y * c.stride_pixels);
-
-        for (int32_t y = min.y; y <= max.y; y++, row += c.stride_pixels, depth_row += c.stride_pixels) {
-            for (int32_t x = min.x; x <= max.x; x++) {
+        for (int32_t y = ctx.min_pixel.y; y <= ctx.max_pixel.y; y++, row += c.stride_pixels, depth_row += c.stride_pixels) {
+            for (int32_t x = ctx.min_pixel.x; x <= ctx.max_pixel.x; x++) {
                 float w0, w1, w2;
-                if (sponge_draw_triangle_iter(sponge_vec2i_make(x, y), v0i, v1i, v2i, area2, &w0, &w1, &w2)) {
-                    float depth = (v0.z * w0) + (v1.z * w1) + (v2.z * w2);
-                    if (depth < depth_row[x] && depth <= 1.0f && depth >= 0.0f) {
-                        depth_row[x] = depth;
-
-                        sponge_ColorF c0 = sponge_color32_to_colorf(colors[t0]);
-                        sponge_ColorF c1 = sponge_color32_to_colorf(colors[t1]);
-                        sponge_ColorF c2 = sponge_color32_to_colorf(colors[t2]);
-                        sponge_ColorF result = sponge_vec4_make(0.0f, 0.0f, 0.0f, 0.0f);
-                        result = sponge_vec4_add(result, sponge_vec4_mul(c0, w0));
-                        result = sponge_vec4_add(result, sponge_vec4_mul(c1, w1));
-                        result = sponge_vec4_add(result, sponge_vec4_mul(c2, w2));
-                        row[x] = sponge_colorf_to_color32(result);
-                    }
+                if (sponge_draw_mesh_triangle_iter(ctx, sponge_vec2i_make(x, y), &depth_row[x], &w0, &w1, &w2)) {
+                    sponge_ColorF c0 = sponge_color32_to_colorf(colors[ctx.t0]);
+                    sponge_ColorF c1 = sponge_color32_to_colorf(colors[ctx.t1]);
+                    sponge_ColorF c2 = sponge_color32_to_colorf(colors[ctx.t2]);
+                    sponge_ColorF result = sponge_vec4_make(0.0f, 0.0f, 0.0f, 0.0f);
+                    result = sponge_vec4_add(result, sponge_vec4_mul(c0, w0));
+                    result = sponge_vec4_add(result, sponge_vec4_mul(c1, w1));
+                    result = sponge_vec4_add(result, sponge_vec4_mul(c2, w2));
+                    row[x] = sponge_colorf_to_color32(result);
                 }
             }
         }
