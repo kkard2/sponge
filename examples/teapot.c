@@ -43,7 +43,7 @@ void init() {
         colors[i] = sponge_colorf_to_color32(color);
 
         // invert winding
-        int32_t t = (i / 3) * 3;
+        int32_t t = (int32_t)((i / 3) * 3);
         triangles[i] = t + (2 - (i % 3));
     }
 
