@@ -151,6 +151,11 @@ void sponge_draw_mesh_col(
     sponge_Texture c, float *depths,
     sponge_Mat4 model, sponge_Mat4 view, sponge_Mat4 proj,
     sponge_Vec3 *positions, sponge_Color32 *colors, int32_t *triangles, size_t triangles_count);
+void sponge_draw_mesh_uv(
+    sponge_Texture c, float *depths,
+    sponge_Mat4 model, sponge_Mat4 view, sponge_Mat4 proj,
+    sponge_Vec3 *positions, sponge_Vec2 *uvs, int32_t *triangles, size_t triangles_count,
+    sponge_Texture tex);
 
 
 #define SPONGE_CLAMP(val, min, max) ((val) < (min) ? (min) : ((val) > (max) ? (max) : (val)))
@@ -586,6 +591,36 @@ void sponge_draw_mesh_col(
                     result = sponge_vec4_add(result, sponge_vec4_mul(c1, w1));
                     result = sponge_vec4_add(result, sponge_vec4_mul(c2, w2));
                     row[x] = sponge_colorf_to_color32(result);
+                }
+            }
+        }
+    }
+}
+
+void sponge_draw_mesh_uv(
+    sponge_Texture c, float *depths,
+    sponge_Mat4 model, sponge_Mat4 view, sponge_Mat4 proj,
+    sponge_Vec3 *positions, sponge_Vec2 *uvs, int32_t *triangles, size_t triangles_count,
+    sponge_Texture tex
+) {
+    sponge_Mat4 mvp = sponge_mat4_mul_mat4(sponge_mat4_mul_mat4(model, view), proj);
+    for (size_t i = 0; i < triangles_count; i += 3) {
+        sponge_DrawMeshTriangleContext ctx = sponge_draw_mesh_triangle_init(c, mvp, positions, triangles, i);
+        sponge_Color32 *row = c.pixels + (ctx.min_pixel.y * c.stride_pixels);
+        float *depth_row = depths + (ctx.min_pixel.y * c.stride_pixels);
+
+        for (int32_t y = ctx.min_pixel.y; y <= ctx.max_pixel.y; y++, row += c.stride_pixels, depth_row += c.stride_pixels) {
+            for (int32_t x = ctx.min_pixel.x; x <= ctx.max_pixel.x; x++) {
+                float w0, w1, w2;
+                if (sponge_draw_mesh_triangle_iter(ctx, sponge_vec2i_make(x, y), &depth_row[x], &w0, &w1, &w2)) {
+                    sponge_Vec2 uv0 = uvs[ctx.t0];
+                    sponge_Vec2 uv1 = uvs[ctx.t1];
+                    sponge_Vec2 uv2 = uvs[ctx.t2];
+                    sponge_Vec2 result = sponge_vec2_make(0.0f, 0.0f);
+                    result = sponge_vec2_add(result, sponge_vec2_mul(uv0, w0));
+                    result = sponge_vec2_add(result, sponge_vec2_mul(uv1, w1));
+                    result = sponge_vec2_add(result, sponge_vec2_mul(uv2, w2));
+                    row[x] = sponge_sample_texture(result, tex);
                 }
             }
         }
