@@ -7,7 +7,7 @@
 #define SPONGE_EXAMPLE_INIT_DEFINED
 #define SPONGE_EXAMPLE_MOUSE_MOVE_DEFINED
 #define SPONGE_EXAMPLE_DRAW_FRAME_3D_DEFINED
-#include "../example.h"
+#include "example.h"
 
 #define FOV (60.0f / PI * 2.0f)
 #define DISTANCE (10.0f)
@@ -22,7 +22,7 @@ static size_t triangles_count;
 
 // TODO(kard): make proper error checking
 void init() {
-    FILE *handle = fopen("./examples/teapot.txt", "r");
+    FILE *handle = fopen("examples/assets/teapot.txt", "r");
     assert(handle);
     fscanf(handle, "%zu", &triangles_count);
     triangles_count *= 3;

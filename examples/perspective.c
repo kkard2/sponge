@@ -2,7 +2,7 @@
 #define SPONGE_EXAMPLE_IMPLEMENTATION
 #define SPONGE_EXAMPLE_MOUSE_MOVE_DEFINED
 #define SPONGE_EXAMPLE_DRAW_FRAME_3D_DEFINED
-#include "../example.h"
+#include "example.h"
 
 #define FOV (60.0f / PI * 2.0f)
 

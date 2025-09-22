@@ -1,6 +1,6 @@
 #include "../sponge.h"
 #define SPONGE_EXAMPLE_IMPLEMENTATION
-#include "../example.h"
+#include "example.h"
 
 #define SPEED (4)
 static int32_t offset = 0;

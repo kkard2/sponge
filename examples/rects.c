@@ -2,7 +2,7 @@
 
 #include "../sponge.h"
 #define SPONGE_EXAMPLE_IMPLEMENTATION
-#include "../example.h"
+#include "example.h"
 
 void draw_frame(sponge_Texture c) {
     assert(c.width > 140 + 20);

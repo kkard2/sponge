@@ -2,7 +2,7 @@
 
 #include "../sponge.h"
 #define SPONGE_EXAMPLE_IMPLEMENTATION
-#include "../example.h"
+#include "example.h"
 
 #define PI ((float)3.14159265358979323846)
 #define SPEED (0.5f / 360.0f * 2 * PI)

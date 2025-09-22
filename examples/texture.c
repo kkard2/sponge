@@ -3,8 +3,8 @@
 #include "../sponge.h"
 #define SPONGE_EXAMPLE_IMPLEMENTATION
 #define SPONGE_EXAMPLE_INIT_DEFINED
-#include "../example.h"
-#include "../stb_image.h"
+#include "example.h"
+#include "vendor/stb_image.h"
 
 #define SPEED_X_ABS 2
 #define SPEED_Y_ABS 2
@@ -17,7 +17,7 @@ int32_t speed_x;
 int32_t speed_y;
 
 void init() {
-    unsigned char *data = stbi_load("examples/kot.png", &texture.width, &texture.height, NULL, 4);
+    unsigned char *data = stbi_load("examples/assets/kot.png", &texture.width, &texture.height, NULL, 4);
     if (!data) {
         printf("%s\n", stbi_failure_reason());
         assert(0);

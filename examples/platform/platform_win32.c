@@ -8,12 +8,12 @@
 #include <fcntl.h>
 
 #define SPONGE_IMPLEMENTATION
-#include "sponge.h"
+#include "../../sponge.h"
 
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+#include "../vendor/stb_image.h"
 
-#include "example.h"
+#include "../example.h"
 
 #define DEFAULT_WIDTH 1280
 #define DEFAULT_HEIGHT 720

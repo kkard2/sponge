@@ -5,9 +5,9 @@
 #define SPONGE_EXAMPLE_INIT_DEFINED
 #define SPONGE_EXAMPLE_MOUSE_MOVE_DEFINED
 #define SPONGE_EXAMPLE_DRAW_FRAME_3D_DEFINED
-#include "../example.h"
+#include "example.h"
 
-#include "../stb_image.h"
+#include "vendor/stb_image.h"
 
 #define FOV (60.0f / PI * 2.0f)
 #define DISTANCE (10.0f)
@@ -17,7 +17,7 @@ static int32_t mouse_x;
 static int32_t mouse_y;
 
 void init() {
-    unsigned char *data = stbi_load("examples/kothd.png", &texture.width, &texture.height, NULL, 4);
+    unsigned char *data = stbi_load("examples/assets/kothd.png", &texture.width, &texture.height, NULL, 4);
     if (!data) {
         printf("%s\n", stbi_failure_reason());
         assert(0);

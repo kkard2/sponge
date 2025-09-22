@@ -2,9 +2,8 @@
 
 #include "../sponge.h"
 #define SPONGE_EXAMPLE_IMPLEMENTATION
-#include "../example.h"
+#include "example.h"
 
-#define PI ((float)3.14159265358979323846)
 #define SPEED (2.0f / 360.0f * 2 * PI)
 static float angle = 0.0f;
 

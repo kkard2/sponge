@@ -4,8 +4,8 @@
 #define SPONGE_EXAMPLE_IMPLEMENTATION
 #define SPONGE_EXAMPLE_INIT_DEFINED
 #define SPONGE_EXAMPLE_MOUSE_MOVE_DEFINED
-#include "../example.h"
-#include "../stb_image.h"
+#include "example.h"
+#include "vendor/stb_image.h"
 
 sponge_Texture texture;
 
@@ -13,7 +13,7 @@ int32_t mouse_x;
 int32_t mouse_y;
 
 void init() {
-    unsigned char *data = stbi_load("examples/kot.png", &texture.width, &texture.height, NULL, 4);
+    unsigned char *data = stbi_load("examples/assets/kot.png", &texture.width, &texture.height, NULL, 4);
     if (!data) {
         printf("%s\n", stbi_failure_reason());
         assert(0);
