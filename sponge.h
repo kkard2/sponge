@@ -61,9 +61,13 @@ sponge_Vec2I sponge_vec2i_make(int32_t x, int32_t y);
 sponge_Vec2 sponge_vec2_add(sponge_Vec2 v0, sponge_Vec2 v1);
 sponge_Vec2 sponge_vec2_sub(sponge_Vec2 v0, sponge_Vec2 v1);
 sponge_Vec2 sponge_vec2_mul(sponge_Vec2 v0, float f);
-float       sponge_vec2_dot(sponge_Vec2 v0, sponge_Vec2 v1);
+
+sponge_Vec3 sponge_vec3_add(sponge_Vec3 v0, sponge_Vec3 v1);
+sponge_Vec3 sponge_vec3_sub(sponge_Vec3 v0, sponge_Vec3 v1);
+sponge_Vec3 sponge_vec3_mul(sponge_Vec3 v0, float f);
 
 sponge_Vec4 sponge_vec4_add(sponge_Vec4 v0, sponge_Vec4 v1);
+sponge_Vec4 sponge_vec4_sub(sponge_Vec4 v0, sponge_Vec4 v1);
 sponge_Vec4 sponge_vec4_mul(sponge_Vec4 v0, float f);
 
 sponge_ColorF  sponge_color32_to_colorf(sponge_Color32 col);
@@ -230,9 +234,17 @@ sponge_Vec2 sponge_vec2_sub(sponge_Vec2 v0, sponge_Vec2 v1) {
 sponge_Vec2 sponge_vec2_mul(sponge_Vec2 v0, float f) {
     return (sponge_Vec2){ .x = v0.x * f, .y = v0.y * f };
 }
-float       sponge_vec2_dot(sponge_Vec2 v0, sponge_Vec2 v1) {
-    return (v0.x * v1.x) + (v0.y * v1.y);
+
+sponge_Vec3 sponge_vec3_add(sponge_Vec3 v0, sponge_Vec3 v1) {
+    return (sponge_Vec3){ .x = v0.x + v1.x, .y = v0.y + v1.y, .z = v0.z + v1.z };
 }
+sponge_Vec3 sponge_vec3_sub(sponge_Vec3 v0, sponge_Vec3 v1) {
+    return (sponge_Vec3){ .x = v0.x - v1.x, .y = v0.y - v1.y, .z = v0.z - v1.z };
+}
+sponge_Vec3 sponge_vec3_mul(sponge_Vec3 v0, float f) {
+    return (sponge_Vec3){ .x = v0.x * f, .y = v0.y * f, .z = v0.z * f };
+}
+
 
 sponge_ColorF  sponge_color32_to_colorf(sponge_Color32 col) {
     return (sponge_ColorF){ .a = (float)col.a, .r = (float)col.r, .g = (float)col.g, .b = (float)col.b };
@@ -242,17 +254,24 @@ sponge_Color32 sponge_colorf_to_color32(sponge_ColorF  col) {
 }
 
 sponge_Vec4 sponge_vec4_add(sponge_Vec4 v0, sponge_Vec4 v1) {
-    v0.a += v1.a;
-    v0.r += v1.r;
-    v0.g += v1.g;
-    v0.b += v1.b;
+    v0.x += v1.x;
+    v0.y += v1.y;
+    v0.z += v1.z;
+    v0.w += v1.w;
+    return v0;
+}
+sponge_Vec4 sponge_vec4_sub(sponge_Vec4 v0, sponge_Vec4 v1) {
+    v0.x -= v1.x;
+    v0.y -= v1.y;
+    v0.z -= v1.z;
+    v0.w -= v1.w;
     return v0;
 }
 sponge_Vec4 sponge_vec4_mul(sponge_Vec4 v0, float f) {
-    v0.a *= f;
-    v0.r *= f;
-    v0.g *= f;
-    v0.b *= f;
+    v0.x *= f;
+    v0.y *= f;
+    v0.z *= f;
+    v0.w *= f;
     return v0;
 }
 
