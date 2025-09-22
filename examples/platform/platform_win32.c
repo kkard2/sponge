@@ -32,7 +32,7 @@ int update_canvas(sponge_Texture *canvas, float **depths, uint32_t new_width, ui
         float *new_depths = malloc(new_count * sizeof(float));
         if (!new_pixels_buffer || !new_depths) {
             free(new_pixels_buffer);
-            free(new_pixels_buffer);
+            free(new_depths);
             return 0;
         }
         free(canvas->pixels);
@@ -43,7 +43,7 @@ int update_canvas(sponge_Texture *canvas, float **depths, uint32_t new_width, ui
     }
     canvas->width = new_width;
     canvas->height = new_height;
-    canvas->stride_pixels = new_width; // TODO(kard): think about this if we want image to stay the same without redraw
+    canvas->stride_pixels = new_width;
 
     ZeroMemory(&bmi, sizeof(bmi));
     bmi.bmiHeader.biSize        = sizeof(BITMAPINFOHEADER);

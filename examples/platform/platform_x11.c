@@ -3,36 +3,57 @@
 
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include <unistd.h>
 
-// TODO(kard): we should probably put more thought into this
-#include "example.c"
+#define SPONGE_IMPLEMENTATION
+#include "../../sponge.h"
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "../vendor/stb_image.h"
+
+#include "../example.h"
 
 #define DEFAULT_WIDTH 256
 #define DEFAULT_HEIGHT 256
 
-static sponge_Canvas canvas = { 0 };
+static size_t pixels_buffer_count = 0;
+static sponge_Texture canvas = { 0 };
+static float *depths = NULL;
 static Display *dpy;
-static XImage *ximg = 0;
+static XImage *ximg = NULL;
 
 
 void init_canvas(uint32_t width, uint32_t height) {
     if (ximg) {
-        XDestroyImage(ximg); // also frees data (why??)
-        // TODO(kard): you can set ximg->data to null before XDestroyImage
+        ximg->data = NULL;
+        XDestroyImage(ximg);
         ximg = NULL;
     }
 
-    canvas.pixels = (uint32_t*)malloc(width * height * 4);
-    if (!canvas.pixels) {
-        fprintf(stderr, "failed to allocate pixel buffer\n");
-        exit(1);
+    size_t new_count = width * height;
+    if (new_count > pixels_buffer_count) {
+        sponge_Color32 *new_pixels_buffer = malloc(new_count * sizeof(uint32_t));
+        float *new_depths = malloc(new_count * sizeof(float));
+        if (!new_pixels_buffer || !new_depths) {
+            free(new_pixels_buffer);
+            free(new_depths);
+            exit(1);
+            fprintf(stderr, "failed to allocate pixel buffer\n");
+        }
+        free(canvas.pixels);
+        free(depths);
+        canvas.pixels = new_pixels_buffer;
+        depths = new_depths;
+        pixels_buffer_count = new_count;
     }
+
     canvas.width = width;
     canvas.height = height;
-    canvas.stride = width;
+    canvas.stride_pixels = width;
 
     // TODO(kard): i assume this can fail
     ximg = XCreateImage(
@@ -71,13 +92,14 @@ int main() {
     );
 
     XStoreName(dpy, win, "sponge");
-    XSelectInput(dpy, win, ExposureMask | KeyPressMask | StructureNotifyMask);
+    XSelectInput(dpy, win, ExposureMask | PointerMotionMask | StructureNotifyMask);
 
     GC gc = DefaultGC(dpy, screen);
 
     XMapWindow(dpy, win);
 
     init_canvas(DEFAULT_WIDTH, DEFAULT_HEIGHT);
+    init();
 
     int running = 1;
     while (running) {
@@ -89,16 +111,18 @@ int main() {
                     //draw_frame(canvas);
                     break;
                 case ConfigureNotify:
-                    // TODO(kard): this is some implicit signed to unsigned conversion
                     init_canvas(ev.xconfigure.width, ev.xconfigure.height);
                     break;
-                case KeyPress:
+                case MotionNotify:
+                    mouse_move(ev.xmotion.x, ev.xmotion.y);
                     break;
             }
         }
 
-        draw_frame(canvas);
-        XPutImage(dpy, win, gc, ximg, 0, 0, 0, 0, canvas.width, canvas.height);
+        if (sponge_texture_valid(canvas)) {
+            draw_frame_3d(canvas, depths);
+            XPutImage(dpy, win, gc, ximg, 0, 0, 0, 0, canvas.width, canvas.height);
+        }
 
         usleep(16000);
     }

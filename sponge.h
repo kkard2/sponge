@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stddef.h>
 #include <math.h>
 
 typedef union {
@@ -412,7 +413,6 @@ void sponge_draw_line(sponge_Texture c, sponge_Vec2I v0, sponge_Vec2I v1, sponge
 
     int32_t dx = SPONGE_ABS(v1.x - v0.x);
     int32_t dy = SPONGE_ABS(v1.y - v0.y);
-    int32_t d = (2 * dy) - dx;
 
     int32_t sx = (v0.x < v1.x) ? 1 : -1;
     int32_t sy = (v0.y < v1.y) ? 1 : -1;

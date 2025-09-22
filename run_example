@@ -1,2 +1,3 @@
 #!/bin/bash
-cc -o platform_x11 platform_x11.c -lX11 -Wall -Wextra -g && ./platform_x11
+cc -o example examples/platform/platform_x11.c examples/$1 \
+    -lX11 -lm -Wall -Wextra -Wno-type-limits -Wno-pointer-sign -g && ./example
