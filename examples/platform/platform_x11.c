@@ -91,6 +91,9 @@ int main() {
         BlackPixel(dpy, screen)
     );
 
+    Atom atom_wm_delete_window = XInternAtom(dpy, "WM_DELETE_WINDOW", False);
+    XSetWMProtocols(dpy, win, &atom_wm_delete_window, 1);
+
     XStoreName(dpy, win, "sponge");
     XSelectInput(dpy, win, ExposureMask | PointerMotionMask | StructureNotifyMask);
 
@@ -103,6 +106,12 @@ int main() {
 
     int running = 1;
     while (running) {
+        if (sponge_texture_valid(canvas)) {
+            draw_frame_3d(canvas, depths);
+            XPutImage(dpy, win, gc, ximg, 0, 0, 0, 0, canvas.width, canvas.height);
+            usleep(16000);
+        }
+
         while (XPending(dpy)) {
             XEvent ev;
             XNextEvent(dpy, &ev);
@@ -116,15 +125,13 @@ int main() {
                 case MotionNotify:
                     mouse_move(ev.xmotion.x, ev.xmotion.y);
                     break;
+                case ClientMessage:
+                    if ((Atom)ev.xclient.data.l[0] == atom_wm_delete_window) {
+                        running = 0;
+                    }
+                    break;
             }
         }
-
-        if (sponge_texture_valid(canvas)) {
-            draw_frame_3d(canvas, depths);
-            XPutImage(dpy, win, gc, ximg, 0, 0, 0, 0, canvas.width, canvas.height);
-        }
-
-        usleep(16000);
     }
 
     if (ximg) {
