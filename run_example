@@ -1,4 +1,4 @@
 #!/bin/bash
 cc -o example examples/platform/platform_x11.c examples/$1 \
     -lX11 -lm -Wall -Wextra -Wno-type-limits -Wno-pointer-sign -g \
-    -O3 -march=native -flto -ffast-math && ./example
+    -O3 -march=native -flto && ./example
